@@ -19,6 +19,7 @@ public:
   virtual void wifi_disconnected();
   virtual bool connected();
   virtual void stop();
+  virtual void flush();
   network_state_callback_t state_callback = NULL;
   received_message_callback_t received_message_callback = NULL;
   received_json_callback_t received_json_callback = NULL;

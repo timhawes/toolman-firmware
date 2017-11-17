@@ -12,18 +12,18 @@ void NetMsg::begin(config_t &config, Network &network, const char *clientid)
   _clientid = clientid;
   last_send = millis();
   last_hello = 0;
-  seq = random(0, (1<<32)-1);
 }
 
 void NetMsg::loop()
 {
-  if (millis() - last_send > 30000) {
-    // send keepalive if we haven't transmitted in last 30 seconds
-    send_keepalive();
-  } else if ((millis() - last_receive > 30000) && (millis() - last_send > 5000)) {
-    // send keepalive every 5 seconds if we haven't received in the last 30 seconds
+  if (millis() - last_send > _config->net_keepalive_interval) {
+    // send keepalive if we haven't transmitted in last X seconds
     send_keepalive();
   }
+  /* else if ((millis() - last_receive > _config->net_keepalive_interval) && (millis() - last_send > 5000)) {
+    // send keepalive every 5 seconds if we haven't received in the last 30 seconds
+    send_keepalive();
+  }*/
 
   if (strlen(pending_token) && millis() - last_token_query > _config->token_query_timeout) {
     Serial.println("token query timed-out");
@@ -33,94 +33,12 @@ void NetMsg::loop()
     pending_token[0] = 0;
   }
 
-  if (auth_message.len != 0 && millis() - auth_message.last_sent > auth_message.interval) {
-    if (auth_message.attempts > 0) {
-      Serial.print("dequeue ");
-      Serial.print(auth_message.seq, DEC);
-      Serial.print(" attempts=");
-      Serial.println(auth_message.attempts, DEC);
-    }
-    if (_network->send((const uint8_t*)auth_message.data, auth_message.len)) {
-      auth_message.attempts++;
-      auth_message.last_sent = millis();
-    }
-  }
-
-  if (firmware_message.len != 0 && millis() - firmware_message.last_sent > firmware_message.interval) {
-    if (firmware_message.attempts > 0) {
-      Serial.print("dequeue ");
-      Serial.print(firmware_message.seq, DEC);
-      Serial.print(" attempts=");
-      Serial.println(firmware_message.attempts, DEC);
-    }
-    if (_network->send((const uint8_t*)firmware_message.data, firmware_message.len)) {
-      firmware_message.attempts++;
-      firmware_message.last_sent = millis();
-    }
-  }
-
 }
 
 bool NetMsg::send_json(JsonObject &data)
 {
-  data["seq"] = seq++;
-  if (_network->send_json(data)) {
-    last_send = millis();
-    return true;
-  } else {
-    return false;
-  }
-}
-
-bool NetMsg::queue_json(JsonObject &data, queued_message_t *q)
-{
-  data["seq"] = seq++;
-
-  //Serial.print("queue request: ");
-  //data.printTo(Serial);
-  int buflen = data.measureLength() + 1;
-  //Serial.print("json size is ");
-  //Serial.println(buflen, DEC);
-  char *buf;
-  buf = new char[buflen];
-  //Serial.print("buffer created of size ");
-  //Serial.println(sizeof(buf), DEC);
-  //Serial.print("*buffer created of size ");
-  //Serial.println(sizeof(*buf), DEC);
-  data.printTo(buf, buflen);
-  //Serial.print("queueing ");
-  //Serial.println(buf);
-  q->attempts = 0;
-  q->interval = 100;
-  q->last_sent = millis() - q->interval;
-  q->len = strlen(buf);
-  q->data = (uint8_t*)buf;
-  //Serial.print("queued ");
-  //Serial.println((const char *)q->data);
-  q->seq = data["seq"];
-  //Serial.print("queued ");
-  //Serial.print(q->seq, DEC);
-  //Serial.print(": ");
-  //Serial.println((const char*)q->data);
-  //if (_network->send_json(data)) {
-  //  last_send = millis();
-  //  return true;
-  //} else {
-  //  return false;
-  //}
-}
-
-void NetMsg::send_ack(unsigned long seq)
-{
-  StaticJsonBuffer<256> jsonBuffer;
-  JsonObject& root = jsonBuffer.createObject();
-  root["ack"] = (unsigned long)seq;
-  if (_network->send_json(root)) {
-    last_send = millis();
-  } else {
-    Serial.println("unable to send ack ");
-    Serial.println(seq, DEC);
-  }
+  last_send = millis();
+  return _network->send_json(data);
 }
 
 void NetMsg::send_keepalive()
@@ -140,8 +58,7 @@ void NetMsg::token(const char *uid)
   root["uid"] = uid;
   strncpy(pending_token, uid, sizeof(pending_token));
   last_token_query = millis();
-  //send_json(root);
-  queue_json(root, &auth_message);
+  send_json(root);
 }
 
 bool NetMsg::get_file(const char *filename)
@@ -169,24 +86,6 @@ bool NetMsg::receive_json(char *data)
       Serial.print(max_received_jsonbuffer, DEC);
       Serial.print(" for input of ");
       Serial.println(inputlen, DEC);
-    }
-    if (root.containsKey("ack")) {
-      if (auth_message.len != 0 && auth_message.seq == root["ack"]) {
-        auth_message.attempts = 0;
-        auth_message.len = 0;
-        delete auth_message.data;
-        auth_message.data = NULL;
-      }
-      if (firmware_message.len != 0 && firmware_message.seq == root["ack"]) {
-        firmware_message.attempts = 0;
-        firmware_message.len = 0;
-        delete firmware_message.data;
-        firmware_message.data = NULL;
-      }
-    }
-    if (root.containsKey("seq")) {
-      unsigned long rseq = root["seq"];
-      send_ack(rseq);
     }
     String cmd = root["cmd"];
     if (cmd == "hello") {
@@ -241,8 +140,6 @@ void NetMsg::network_changed()
   if (state_callback) {
     state_callback(false, "");
   }
-  auth_message.len = 0;
-  firmware_message.len = 0;
   StaticJsonBuffer<500> jsonBuffer;
   JsonObject& root = jsonBuffer.createObject();
   root["cmd"] = "hello";
@@ -256,6 +153,7 @@ void NetMsg::data_cmd_hello(JsonObject &data)
   root["cmd"] = "auth";
   root["client"] = _clientid;
   root["password"] = _config->server_password;
+  _network->flush();
   _network->send_json(root);
 }
 
@@ -345,8 +243,7 @@ void NetMsg::data_cmd_firmware(JsonObject &data)
     root["position"] = 0;
     root["chunk_size"] = data_chunk_size;
     root["md5"] = data["md5"];
-    //send_json(root);
-    queue_json(root, &firmware_message);
+    send_json(root);
   } else {
     Serial.println("nope, don't bother");
     delete f;
@@ -368,7 +265,7 @@ void NetMsg::data_cmd_firmware_payload(JsonObject &data)
   //Serial.print("binary len ");
   //Serial.println(binary_length, DEC);
 
-  if (data["start"]) {
+  if (data["start"] && (!firmwarewriter)) {
     Serial.println("new FirmwareWriter");
     if (firmwarewriter) {
       Serial.println("FirmwareWriter is already active, restarting it");
@@ -426,8 +323,7 @@ void NetMsg::data_cmd_firmware_payload(JsonObject &data)
     root["position"] = (unsigned int)data["position"] + binary_length;
     root["chunk_size"] = data_chunk_size;
     //Serial.println("asking for next block... send_json...");
-    //send_json(root);
-    queue_json(root, &firmware_message);
+    send_json(root);
     //Serial.println("asking for next block... send_json returned");
   }
 

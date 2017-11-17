@@ -46,17 +46,13 @@ private:
   unsigned long last_token_query;
   unsigned long last_hello;
   unsigned long seq;
-  void send_ack(unsigned long seq);
   bool connected = false;
-  queued_message_t auth_message;
-  queued_message_t firmware_message;
   unsigned int data_chunk_size = 512;
   unsigned int max_received_jsonbuffer = 0;
 public:
   NetMsg();
   //void send(const uint8_t *data, int len);
   bool send_json(JsonObject &data);
-  bool queue_json(JsonObject &data, queued_message_t *q);
   void send_keepalive();
   void begin(config_t &config, Network &network, const char *clientid);
   void loop();

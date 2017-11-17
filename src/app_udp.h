@@ -6,9 +6,8 @@ extern "C"{
 #include "lwip/dns.h"
 };
 
-#include <ESP8266WiFi.h>
-#include <WiFiUdp.h>
 #include <ArduinoJson.h>
+#include <TimsReliableDatagram.h>
 
 #include "app_network.h"
 #include "app_types.h"
@@ -19,9 +18,6 @@ private:
   config_t *_config;
   bool wifi_state;
   bool client_state;
-  WiFiUDP client;
-  IPAddress ipaddress;
-  ip_addr_t lookup_addr;
   unsigned long last_send;
   unsigned long last_connect;
   unsigned long last_receive;
@@ -29,8 +25,10 @@ private:
   unsigned long seq = 0;
   void abort();
   bool send_hello();
+  void receive(const uint8_t *data, unsigned int len);
 public:
   UdpNet();
+  MyUdp myudp;
   bool send(const uint8_t *data, int len);
   bool send_json(JsonObject &data);
   void begin(config_t &config);
@@ -39,6 +37,7 @@ public:
   void wifi_disconnected();
   bool connected();
   void stop();
+  void flush();
   received_json_callback_t received_json_callback = NULL;
   unsigned long send_failip_count = 0;
   unsigned long send_failbegin_count = 0;

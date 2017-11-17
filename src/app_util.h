@@ -38,7 +38,7 @@ public:
   FirmwareWriter(unsigned int size, const char *md5);
   bool check();
   bool begin();
-  bool add(uint8_t *data, unsigned int len);
+  //bool add(uint8_t *data, unsigned int len);
   bool add(uint8_t *data, unsigned int len, unsigned int pos);
   bool commit();
   bool commit_and_reboot();

@@ -162,6 +162,7 @@ bool FirmwareWriter::begin()
   position = 0;
 }
 
+/*
 bool FirmwareWriter::add(uint8_t *data, unsigned int len)
 {
   if (position == 0) {
@@ -208,6 +209,7 @@ bool FirmwareWriter::add(uint8_t *data, unsigned int len)
     return false;
   }
 }
+*/
 
 bool FirmwareWriter::add(uint8_t *data, unsigned int len, unsigned int pos)
 {
@@ -218,7 +220,7 @@ bool FirmwareWriter::add(uint8_t *data, unsigned int len, unsigned int pos)
     Serial.println(pos, DEC);
     return false;
   }
-  if (position == 0) {
+  if (position == 0 && (!started)) {
     if (len < 4) {
       // need at least 4 bytes to check the file header
       Serial.println("need at least 4 bytes to check the file header");

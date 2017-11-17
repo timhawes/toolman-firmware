@@ -167,6 +167,13 @@ void Display::set_motd(const char *_motd)
   strncpy(motd, _motd, sizeof(motd));
 }
 
+void Display::set_attempts(unsigned int new_attempts)
+{
+  char t[9];
+  snprintf(t, sizeof(t), "%d", new_attempts);
+  draw_right(16, 0, t, 4);
+}
+
 void Display::message(const char *text, unsigned long timeout)
 {
   draw_left(0, 2, text, 20);

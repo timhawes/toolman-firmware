@@ -21,6 +21,7 @@ private:
   bool flashing_state = false;
   unsigned long flashing_last_change = 0;
   long flashing_interval = 750;
+  unsigned int attempts = 0;
 public:
   Display(LiquidCrystal_I2C &lcd);
   void begin();
@@ -30,6 +31,7 @@ public:
   void set_state(bool enabled, bool active);
   void set_current(unsigned long milliamps);
   void set_motd(const char *motd);
+  void set_attempts(unsigned int attempts);
   void message(const char *text, unsigned long timeout=0);
   void set_network(bool up);
   void set_network(bool wifi_up, bool ip_up, bool session_up);
@@ -46,6 +48,7 @@ public:
   void backlight_flashing();
   bool spinner_enabled = false;
   bool current_enabled = false;
+  bool attempts_enabled = false;
 };
 
 #endif

@@ -275,7 +275,7 @@ void network_state_callback(bool up, const char *text)
     //display.message(text, 2000);
   } else {
     //display.message(text);
-    network_state_wifi = false;
+    network_state_ip = false;
     display.set_network(network_state_wifi, network_state_ip, network_state_session);
   }
 }
@@ -356,6 +356,7 @@ void load_config()
   strncpy(config.server_password, default_server_password, sizeof(config.server_password));
   config.token_query_timeout = 500;
   config.report_status_interval = 30000;
+  config.net_keepalive_interval = 30000;
 
   if (SPIFFS.exists("config.json")) {
     File configFile = SPIFFS.open("config.json", "r");
@@ -781,6 +782,11 @@ void setup()
   }
 
   load_config();
+  //strcpy(config.ssid, "Hacklab");
+  //strcpy(config.wpa_password, "piranhas");
+  //strcpy(config.server_host,  "ss-tool-controller.hacklab");
+  //config.server_port = 33333;
+  //config.changed = true;
   wifisupervisor.begin(config);
   net.begin(config);
   netmsg.begin(config, net, clientid);
@@ -812,6 +818,14 @@ void setup()
     Serial.print(" ");
     Serial.println(dir.fileSize());
   }
+
+  //if (digitalRead(button_a_pin) == LOW && digitalRead(button_b_pin) == LOW) {
+  //  while (digitalRead(button_a_pin) == LOW && digitalRead(button_b_pin) == LOW) {
+  //    delay(1);
+  //  }
+  //  SetupMode setup_mode(clientid, setup_password);
+  //  setup_mode.run();
+  //}
 
 }
 
@@ -891,6 +905,10 @@ void loop() {
   yield();
   net.loop();
   yield();
+  if (config.dev) {
+    display.set_attempts(net.myudp.get_attempts());
+  }
+  yield();
   netmsg.loop();
   yield();
   nfc.loop();
@@ -921,10 +939,13 @@ void loop() {
 
   if (config.changed || first_loop) {
     display.set_device(config.name);
-    display.spinner_enabled = config.dev;
+    display.spinner_enabled = false; //config.dev;
     display.current_enabled = config.dev;
-    save_config();
     first_loop = false;
+  }
+
+  if (config.changed) {
+    save_config();
   }
 
   yield();
