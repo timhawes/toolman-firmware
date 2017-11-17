@@ -1,0 +1,9 @@
+[submodule "lib/ArduinoJson"]
+	path = lib/ArduinoJson
+	url = https://github.com/bblanchon/ArduinoJson.git
+[submodule "lib/Arduino-LiquidCrystal-I2C-library"]
+	path = lib/Arduino-LiquidCrystal-I2C-library
+	url = https://github.com/fdebrabander/Arduino-LiquidCrystal-I2C-library.git
+[submodule "lib/_PN532"]
+	path = lib/_PN532
+	url = https://github.com/Seeed-Studio/PN532.git
