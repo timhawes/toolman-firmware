@@ -7,3 +7,18 @@
 [submodule "lib/_PN532"]
 	path = lib/_PN532
 	url = https://github.com/Seeed-Studio/PN532.git
+[submodule "lib/Time"]
+	path = lib/Time
+	url = https://github.com/PaulStoffregen/Time.git
+[submodule "lib/base64_arduino"]
+	path = lib/base64_arduino
+	url = https://github.com/Densaugeo/base64_arduino.git
+[submodule "lib/Bounce2"]
+	path = lib/Bounce2
+	url = https://github.com/thomasfredericks/Bounce2.git
+[submodule "lib/ESPAsyncTCP"]
+	path = lib/ESPAsyncTCP
+	url = https://github.com/me-no-dev/ESPAsyncTCP.git
+[submodule "lib/WiFiManager"]
+	path = lib/WiFiManager
+	url = https://github.com/tzapu/WiFiManager.git
