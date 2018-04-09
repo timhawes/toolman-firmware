@@ -203,6 +203,8 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       display.message("Access Granted", 2000);
       display.set_state(device_enabled, false);
       buzzer.beep_later(50);
+    } else {
+      display.message("Access Denied", 2000);
     }
     return;
   }
@@ -224,7 +226,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
     return;
   }
 
-  display.message("Unknown Token", 2000);
+  display.message("Access Denied", 2000);
   return;
 }
 
