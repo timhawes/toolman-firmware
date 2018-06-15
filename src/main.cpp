@@ -993,6 +993,7 @@ void loop() {
         active_time = millis() - session_went_active;
       } else {
         state = "standby";
+        strcpy(user_name, "");
       }
     }
     //netmsg.send_status(state, user_name, device_milliamps, active_time, idle_time);
