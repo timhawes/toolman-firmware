@@ -305,3 +305,41 @@ unsigned int FirmwareWriter::get_position()
 {
   return position;
 }
+
+MilliClock::MilliClock()
+{
+  start_time = millis();
+  running_time = 0;
+  running = false;
+}
+
+void MilliClock::reset()
+{
+  running_time = 0;
+  start_time = millis();
+}
+
+void MilliClock::start()
+{
+  if (!running) {
+    start_time = millis();
+    running = true;
+  }
+}
+
+void MilliClock::stop()
+{
+  if (running) {
+    running_time = running_time + (millis() - start_time);
+    running = false;
+  }
+}
+
+unsigned long MilliClock::read()
+{
+  if (running) {
+    return running_time + (millis() - start_time);
+  } else {
+    return running_time;
+  }
+}

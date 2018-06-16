@@ -79,6 +79,8 @@ bool network_state_wifi = false;
 bool network_state_ip = false;
 bool network_state_session = false;
 
+MilliClock session_clock;
+MilliClock active_clock;
 unsigned long session_start;
 unsigned long session_went_active;
 unsigned long session_went_idle;
@@ -200,6 +202,9 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       session_start = millis();
       session_went_active = session_start;
       session_went_idle = session_start;
+      session_clock.reset();
+      session_clock.start();
+      active_clock.reset();
       display.message("Access Granted", 2000);
       display.set_state(device_enabled, false);
       buzzer.beep_later(50);
@@ -220,6 +225,9 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
     session_start = millis();
     session_went_active = session_start;
     session_went_idle = session_start;
+    session_clock.reset();
+    session_clock.start();
+    active_clock.reset();
     display.message("Access Granted", 2000);
     display.set_state(device_enabled, false);
     buzzer.beep_later(50);
@@ -861,6 +869,7 @@ void adc_loop()
         device_active = true;
         status_updated = true;
         session_went_active = millis();
+        active_clock.start();
         display.set_state(device_enabled, device_active);
       }
     } else {
@@ -868,6 +877,7 @@ void adc_loop()
         device_active = false;
         status_updated = true;
         session_went_idle = millis();
+        active_clock.stop();
         display.set_state(device_enabled, device_active);
       }
     }
@@ -910,6 +920,11 @@ void loop() {
   if (config.dev) {
     display.set_attempts(net.myudp.get_attempts());
   }
+  if (device_enabled || device_active) {
+    display.session_time = session_clock.read();
+    display.active_time = active_clock.read();
+  }
+  display.draw_clocks();
   yield();
   netmsg.loop();
   yield();

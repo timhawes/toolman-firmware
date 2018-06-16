@@ -47,4 +47,18 @@ public:
   unsigned int get_position();
 };
 
+class MilliClock
+{
+private:
+  unsigned long start_time;
+  unsigned long running_time;
+  bool running;
+public:
+  MilliClock();
+  unsigned long read();
+  void start();
+  void stop();
+  void reset();
+};
+
 #endif

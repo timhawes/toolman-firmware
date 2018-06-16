@@ -277,3 +277,24 @@ void Display::backlight_flashing()
     _lcd->setBacklight(flashing_state);
   }
 }
+
+void Display::draw_clocks()
+{
+  char t[20];
+  static unsigned long prev_active_seconds;
+  static unsigned long prev_session_seconds;
+  unsigned long session_seconds = session_time / 1000;
+  unsigned long active_seconds = active_time / 1000;
+  if (prev_session_seconds != session_seconds || prev_active_seconds != active_seconds) {
+    int s_hours = session_seconds / 3600;
+    int s_minutes = (session_seconds / 60) % 60;
+    int s_seconds = session_seconds % 60;
+    int a_hours = active_seconds / 3600;
+    int a_minutes = (active_seconds / 60) % 60;
+    int a_seconds = active_seconds % 60;
+    snprintf(t, sizeof(t), "%02d:%02d:%02d  %02d:%02d:%02d", s_hours, s_minutes, s_seconds, a_hours, a_minutes, a_seconds);
+    draw_left(0, 1, t, 20);
+    prev_session_seconds = session_seconds;
+    prev_active_seconds = active_seconds;
+  }
+}
