@@ -69,7 +69,8 @@ void Display::loop()
 void Display::set_user(const char *name)
 {
   strncpy(user_name, name, sizeof(user_name));
-  draw_left(0, 1, name, 20);
+  draw_left(0, 1, name, 10);
+  draw_left(10, 1, " ", 1);
   //_lcd->setCursor(0, 1);
   //_lcd->print(name);
   //for (int i=strlen(name)-1; i<19; i++) {
@@ -159,7 +160,7 @@ void Display::set_current(unsigned long milliamps)
 
   snprintf(t, sizeof(t), "%dmA", milliamps);
 
-  draw_left(0, 3, t, 10);
+  draw_left(0, 3, t, 7);
 }
 
 void Display::set_motd(const char *_motd)
@@ -171,7 +172,7 @@ void Display::set_attempts(unsigned int new_attempts)
 {
   char t[9];
   snprintf(t, sizeof(t), "%d", new_attempts);
-  draw_right(16, 0, t, 4);
+  draw_right(8, 3, t, 3);
 }
 
 void Display::message(const char *text, unsigned long timeout)
@@ -280,7 +281,6 @@ void Display::backlight_flashing()
 
 void Display::draw_clocks()
 {
-  char t[20];
   static unsigned long prev_active_seconds;
   static unsigned long prev_session_seconds;
   unsigned long session_seconds = session_time / 1000;
@@ -292,8 +292,11 @@ void Display::draw_clocks()
     int a_hours = active_seconds / 3600;
     int a_minutes = (active_seconds / 60) % 60;
     int a_seconds = active_seconds % 60;
-    snprintf(t, sizeof(t), "%02d:%02d:%02d  %02d:%02d:%02d", s_hours, s_minutes, s_seconds, a_hours, a_minutes, a_seconds);
-    draw_left(0, 1, t, 20);
+    char t[10];
+    snprintf(t, sizeof(t), "%02d:%02d:%02d", s_hours, s_minutes, s_seconds);
+    draw_right(11, 0, t, 9);
+    snprintf(t, sizeof(t), "%02d:%02d:%02d", a_hours, a_minutes, a_seconds);
+    draw_right(11, 1, t, 9);
     prev_session_seconds = session_seconds;
     prev_active_seconds = active_seconds;
   }
