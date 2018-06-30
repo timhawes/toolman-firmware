@@ -29,6 +29,7 @@
 #include "app_nfc.h"
 #include "app_setup.h"
 #include "app_ui.h"
+#include "tokendb.hpp"
 
 const uint8_t buzzer_pin = 15;
 const uint8_t sda_pin = 13;
@@ -132,63 +133,6 @@ void token_removed()
 
 }
 
-bool token_lookup(const char *uid)
-{
-  uint8_t uidbytes[7];
-  uint8_t uidlen;
-
-  uidlen = decode_hex((const char*)uid, uidbytes, sizeof(uidbytes));
-
-  //Serial.print("looking for ");
-  //Serial.print(uidlen, DEC);
-  //Serial.println(" bytes UID in tokens files");
-
-  //Serial.print(uidlen, HEX);
-  //for (int i=0; i<uidlen; i++) {
-  //  Serial.print(" ");
-  //  Serial.print(uidbytes[i], HEX);
-  //}
-  //Serial.println();
-  //Serial.println("---");
-
-  if (SPIFFS.exists("tokens")) {
-    File tokens_file = SPIFFS.open("tokens", "r");
-    if (tokens_file) {
-      uint8_t dbversion = tokens_file.read();
-      if (dbversion == 1) {
-        while (tokens_file.available()) {
-          uint8_t xlen = tokens_file.read();
-          uint8_t xuid[xlen];
-          //Serial.print(xlen, HEX);
-          for (int i=0; i<xlen; i++) {
-            xuid[i] = tokens_file.read();
-            //Serial.print(" ");
-            //Serial.print(xuid[i], HEX);
-          }
-          //Serial.println();
-          if ((xlen == uidlen) && (memcmp(xuid, uidbytes, xlen) == 0)) {
-            // found
-            //Serial.println("found!");
-            tokens_file.close();
-            return true;
-          //} else {
-          //  Serial.println("nope");
-          }
-        }
-      } else {
-        Serial.print("unknown tokens version ");
-        Serial.println(dbversion, DEC);
-      }
-    } else {
-      Serial.println("unable to open tokens file");
-    }
-  } else {
-    Serial.println("tokens file not found");
-  }
-
-  return false;
-}
-
 void token_info_callback(const char *uid, bool found, const char *name, uint8_t access)
 {
   if (found) {
@@ -214,24 +158,26 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
     return;
   }
 
-  if (token_lookup(uid)) {
-    //strncpy(user_name, "[unknown]", sizeof(user_name));
-    strncpy(user_name, uid, sizeof(user_name));
-    display.set_user(uid);
-    device_enabled = true;
-    digitalWrite(relay_pin, HIGH);
-    device_relay = true;
-    status_updated = true;
-    session_start = millis();
-    session_went_active = session_start;
-    session_went_idle = session_start;
-    session_clock.reset();
-    session_clock.start();
-    active_clock.reset();
-    display.message("Access Granted", 2000);
-    display.set_state(device_enabled, false);
-    buzzer.beep_later(50);
-    return;
+  TokenDB tokendb("tokens");
+  if (tokendb.lookup(uid)) {
+    if (tokendb.get_access_level() > 0) {
+      strncpy(user_name, tokendb.get_user().c_str(), sizeof(user_name));
+      display.set_user(tokendb.get_user().c_str());
+      device_enabled = true;
+      digitalWrite(relay_pin, HIGH);
+      device_relay = true;
+      status_updated = true;
+      session_start = millis();
+      session_went_active = session_start;
+      session_went_idle = session_start;
+      session_clock.reset();
+      session_clock.start();
+      active_clock.reset();
+      display.message("Access Granted", 2000);
+      display.set_state(device_enabled, false);
+      buzzer.beep_later(50);
+      return;
+    }
   }
 
   display.message("Access Denied", 2000);
