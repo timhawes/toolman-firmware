@@ -4,7 +4,7 @@ WifiSupervisor::WifiSupervisor()
 {
 }
 
-void WifiSupervisor::begin(config_t &config)
+void WifiSupervisor::begin(ArduinoConfigDB &config)
 {
   WiFi.mode(WIFI_STA);
   _config = &config;
@@ -26,7 +26,7 @@ void WifiSupervisor::loop()
     }
   } else {
     if (!begin_done) {
-      WiFi.begin(_config->ssid, _config->wpa_password);
+      WiFi.begin(_config->getConstChar("ssid"), _config->getConstChar("wpa_password"));
       begin_done = true;
     }
     if (connected) {

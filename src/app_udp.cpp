@@ -5,14 +5,14 @@ UdpNet::UdpNet()
 
 }
 
-void UdpNet::begin(config_t &config)
+void UdpNet::begin(ArduinoConfigDB &config)
 {
   using namespace std::placeholders;
 
   _config = &config;
   myudp.debug(false);
   //myudp.begin(config.server_host, config.server_port);
-  myudp.begin(config.server_host, 33333);
+  myudp.begin(_config->getConstChar("server_host"), 33333);
   myudp.fancy_callback = std::bind(&UdpNet::receive, this, _1, _2);
   //wifi_state = false;
   //client_state = false;

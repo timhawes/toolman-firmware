@@ -7,6 +7,7 @@ extern "C"{
 };
 
 #include <ArduinoJson.h>
+#include "ArduinoConfigDB.hpp"
 #include <TimsReliableDatagram.h>
 
 #include "app_network.h"
@@ -15,7 +16,7 @@ extern "C"{
 class UdpNet : public Network
 {
 private:
-  config_t *_config;
+  ArduinoConfigDB *_config;
   bool wifi_state;
   bool client_state;
   unsigned long last_send;
@@ -31,7 +32,7 @@ public:
   MyUdp myudp;
   bool send(const uint8_t *data, int len);
   bool send_json(JsonObject &data);
-  void begin(config_t &config);
+  void begin(ArduinoConfigDB &config);
   void loop();
   void wifi_connected();
   void wifi_disconnected();

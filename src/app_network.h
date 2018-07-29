@@ -3,6 +3,7 @@
 
 #include <ArduinoJson.h>
 #include "app_types.h"
+#include "ArduinoConfigDB.hpp"
 
 typedef void (*network_state_callback_t)(bool up, const char *message);
 typedef bool (*received_message_callback_t)(uint8_t *data, unsigned int len);
@@ -13,7 +14,7 @@ class Network
 public:
   virtual bool send(const uint8_t *data, int len);
   virtual bool send_json(JsonObject &data);
-  virtual void begin(config_t &config);
+  virtual void begin(ArduinoConfigDB &config);
   virtual void loop();
   virtual void wifi_connected();
   virtual void wifi_disconnected();

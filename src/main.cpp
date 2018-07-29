@@ -21,6 +21,7 @@
 #include "app_setup.h"
 #include "app_ui.h"
 #include "tokendb.hpp"
+#include "ArduinoConfigDB.hpp"
 
 const uint8_t buzzer_pin = 15;
 const uint8_t sda_pin = 13;
@@ -34,7 +35,7 @@ const uint8_t button_b_pin = 5;
 char clientid[10];
 
 // config
-config_t config;
+ArduinoConfigDB config;
 
 // firmware url for OTA update
 char firmware_url[255] = "";
@@ -257,7 +258,7 @@ void button_callback(uint8_t button, bool state)
       if (state) {
         Serial.println("flash button pressed, going into setup mode");
         display.setup_mode(clientid);
-        SetupMode setup_mode(clientid, setup_password);
+        SetupMode setup_mode(clientid, setup_password, &config);
         setup_mode.run();
       }
       break;
@@ -280,128 +281,10 @@ void button_callback(uint8_t button, bool state)
     }
   }
 
-  if (button_a && button_b && config.dev) {
+  if (button_a && button_b && config.getBoolean("dev")) {
     display.restart_warning();
     ESP.restart();
   }
-}
-
-void load_config()
-{
-  // defaults
-  strncpy(config.server_host, default_server_host, sizeof(config.server_host));
-  config.server_port = default_server_port;
-  strncpy(config.server_password, default_server_password, sizeof(config.server_password));
-  config.token_query_timeout = 500;
-  config.report_status_interval = 30000;
-  config.net_keepalive_interval = 30000;
-
-  if (SPIFFS.exists("config.json")) {
-    File configFile = SPIFFS.open("config.json", "r");
-    if (configFile) {
-      size_t size = configFile.size();
-      std::unique_ptr<char[]> buf(new char[size]);
-      configFile.readBytes(buf.get(), size);
-      DynamicJsonBuffer jsonBuffer;
-      JsonObject& json = jsonBuffer.parseObject(buf.get());
-      if (json.success()) {
-        Serial.print("configuration loaded ");
-        json.printTo(Serial);
-        Serial.println();
-        if (json.containsKey("ssid")) {
-          strncpy(config.ssid, json["ssid"], sizeof(config.ssid));
-        }
-        if (json.containsKey("wpa_password")) {
-          strncpy(config.wpa_password, json["wpa_password"], sizeof(config.wpa_password));
-        }
-        if (json.containsKey("server_host")) {
-          strncpy(config.server_host, json["server_host"], sizeof(config.server_host));
-        }
-        if (json.containsKey("server_port")) {
-          config.server_port = json["server_port"];
-        }
-        if (json.containsKey("server_password")) {
-          strncpy(config.server_password, json["server_password"], sizeof(config.server_password));
-        }
-        if (json.containsKey("name")) {
-          strncpy(config.name, json["name"], sizeof(config.name));
-        }
-        if (json.containsKey("idle_timeout")) {
-          config.idle_timeout = json["idle_timeout"];
-        }
-        if (json.containsKey("active_timeout")) {
-          config.active_timeout = json["active_timeout"];
-        }
-        if (json.containsKey("adc_multiplier")) {
-          config.adc_multiplier = json["adc_multiplier"];
-        }
-        if (json.containsKey("adc_interval")) {
-          config.adc_interval = json["adc_interval"];
-        }
-        if (json.containsKey("active_threshold")) {
-          config.active_threshold = json["active_threshold"];
-        }
-        if (json.containsKey("card_present_timeout")) {
-          config.card_present_timeout = json["card_present_timeout"];
-        }
-        if (json.containsKey("net_keepalive_interval")) {
-          config.net_keepalive_interval = json["net_keepalive_interval"];
-        }
-        if (json.containsKey("net_retry_min_interval")) {
-          config.net_retry_min_interval = json["net_retry_min_interval"];
-        }
-        if (json.containsKey("net_retry_max_interval")) {
-          config.net_retry_max_interval = json["net_retry_max_interval"];
-        }
-        if (json.containsKey("long_press_time")) {
-          config.long_press_time = json["long_press_time"];
-        }
-        if (json.containsKey("report_status_interval")) {
-          config.report_status_interval = json["report_status_interval"];
-        }
-        if (json.containsKey("token_query_timeout")) {
-          config.token_query_timeout = json["token_query_timeout"];
-        }
-        if (json.containsKey("dev")) {
-          config.dev = json["dev"];
-        }
-      }
-    }
-  }
-}
-
-void save_config()
-{
-  DynamicJsonBuffer jsonBuffer;
-  JsonObject& json = jsonBuffer.createObject();
-  json["ssid"] = config.ssid;
-  json["wpa_password"] = config.wpa_password;
-  json["server_host"] = config.server_host;
-  json["server_port"] = config.server_port;
-  json["server_password"] = config.server_password;
-  json["name"] = config.name;
-  json["idle_timeout"] = config.idle_timeout;
-  json["active_timeout"] = config.active_timeout;
-  json["adc_multiplier"] = config.adc_multiplier;
-  json["adc_interval"] = config.adc_interval;
-  json["active_threshold"] = config.active_threshold;
-  json["card_present_timeout"] = config.card_present_timeout;
-  json["net_keepalive_interval"] = config.net_keepalive_interval;
-  json["net_retry_min_interval"] = config.net_retry_min_interval;
-  json["net_retry_max_interval"] = config.net_retry_max_interval;
-  json["long_press_time"] = config.long_press_time;
-  json["report_status_interval"] = config.report_status_interval;
-  json["token_query_timeout"] = config.token_query_timeout;
-  json["dev"] = config.dev;
-  File configFile = SPIFFS.open("config.json", "w");
-  if (configFile) {
-    json.printTo(configFile);
-    configFile.close();
-    Serial.println("configuration saved");
-  } else {
-    Serial.println("configuration could not be saved");
-  }
-  config.changed = false;
 }
 
 void firmware_callback(const char *url, const char *fingerprint, const char *md5)
@@ -444,139 +327,7 @@ void config_callback(const char *key, const JsonVariant& value)
   //Serial.print(key);
   //Serial.print("=");
   //Serial.println((const char*)value);
-  if (strcmp(key, "ssid") == 0) {
-    if (strncmp(value, config.ssid, sizeof(config.ssid)) != 0) {
-      strncpy(config.ssid, value, sizeof(config.ssid));
-      config.changed = true;
-    }
-    return;
-  }
-  if (strcmp(key, "wpa_password") == 0) {
-    if (strncmp(value, config.wpa_password, sizeof(config.wpa_password)) != 0) {
-      strncpy(config.wpa_password, value, sizeof(config.wpa_password));
-      config.changed = true;
-    }
-    return;
-  }
-  if (strcmp(key, "server_host") == 0) {
-    if (strncmp(value, config.server_host, sizeof(config.server_host)) != 0) {
-      strncpy(config.server_host, value, sizeof(config.server_host));
-      config.changed = true;
-    }
-    return;
-  }
-  if (strcmp(key, "server_port") == 0) {
-    if (value != config.server_port) {
-      config.server_port = value;
-      config.changed = true;
-    }
-    return;
-  }
-  if (strcmp(key, "server_password") == 0) {
-    if (strncmp(value, config.server_password, sizeof(config.server_password)) != 0) {
-      strncpy(config.server_password, value, sizeof(config.server_password));
-      config.changed = true;
-    }
-    return;
-  }
-  if (strcmp(key, "name") == 0) {
-    if (strncmp(value, config.name, sizeof(config.name)) != 0) {
-      strncpy(config.name, value, sizeof(config.name));
-      config.changed = true;
-    }
-    return;
-  }
-  if (strcmp(key, "idle_timeout") == 0) {
-    if (value != config.idle_timeout) {
-      config.idle_timeout = value;
-      config.changed = true;
-      return;
-    }
-  }
-  if (strcmp(key, "active_timeout") == 0) {
-    if (value != config.active_timeout) {
-      config.active_timeout = value;
-      config.changed = true;
-      return;
-    }
-  }
-  if (strcmp(key, "adc_interval") == 0) {
-    if (value != config.adc_interval) {
-      config.adc_interval = value;
-      config.changed = true;
-      return;
-    }
-  }
-  if (strcmp(key, "adc_multiplier") == 0) {
-    if (value != config.adc_multiplier) {
-      config.adc_multiplier = value;
-      config.changed = true;
-      return;
-    }
-  }
-  if (strcmp(key, "active_threshold") == 0) {
-    if (value != config.active_threshold) {
-      config.active_threshold = value;
-      config.changed = true;
-      return;
-    }
-  }
-  if (strcmp(key, "card_present_timeout") == 0) {
-    if (value != config.card_present_timeout) {
-      config.card_present_timeout = value;
-      config.changed = true;
-      return;
-    }
-  }
-  if (strcmp(key, "net_keepalive_interval") == 0) {
-    if (value != config.net_keepalive_interval) {
-      config.net_keepalive_interval = value;
-      config.changed = true;
-      return;
-    }
-  }
-  if (strcmp(key, "net_retry_min_interval") == 0) {
-    if (value != config.net_retry_min_interval) {
-      config.net_retry_min_interval = value;
-      config.changed = true;
-      return;
-    }
-  }
-  if (strcmp(key, "net_retry_max_interval") == 0) {
-    if (value != config.net_retry_max_interval) {
-      config.net_retry_max_interval = value;
-      config.changed = true;
-      return;
-    }
-  }
-  if (strcmp(key, "long_press_time") == 0) {
-    if (value != config.long_press_time) {
-      config.long_press_time = value;
-      config.changed = true;
-      return;
-    }
-  }
-  if (strcmp(key, "report_status_interval") == 0) {
-    if (value != config.report_status_interval) {
-      config.report_status_interval= value;
-      config.changed = true;
-      return;
-    }
-  }
-  if (strcmp(key, "token_query_timeout") == 0) {
-    if (value != config.token_query_timeout) {
-      config.token_query_timeout = value;
-      config.changed = true;
-      return;
-    }
-  }
-  if (strcmp(key, "dev") == 0) {
-    if (value != config.dev) {
-      config.dev = value;
-      config.changed = true;
-      return;
-    }
-  }
+  config.set(key, value.as<String>());
 }
 
 void motd_callback(const char *motd)
@@ -632,7 +383,7 @@ float read_current()
   Serial.print("Vrms="); Serial.println(vrms, 6);
   Serial.print("amps="); Serial.println(amps, 6);
 
-  return ((float)(max_val - min_val) / (float)readings) * config.adc_multiplier / 1000;
+  return ((float)(max_val - min_val) / (float)readings) * config.getInteger("adc_multiplier") / 1000;
   //return (unsigned long)((max_val - min_val) * config.adc_multiplier * 1000) / (config.adc_divider * readings);
 }
 
@@ -663,8 +414,55 @@ double read_irms_current()
     sumI += sqI;
   }
 
-  Irms = config.adc_multiplier * sqrt(sumI / sample_count) / 1024;
+  Irms = config.getInteger("adc_multiplier") * sqrt(sumI / sample_count) / 1024;
   return Irms;
+}
+
+void load_config()
+{
+  if (!(SPIFFS.exists("config.json") || SPIFFS.exists("config.dat"))) {
+    Serial.println("load_config: setting defaults");
+    config.set("ssid", "Hacklab");
+    config.set("wpa_password", "piranhas");
+    config.set("server_host", "ss-tool-controller.hacklab");
+    config.set("server_password", "password");
+  }
+
+  if (SPIFFS.exists("config.json")) {
+    Serial.println("load_config: importing config.json");
+    File configFile = SPIFFS.open("config.json", "r");
+    if (configFile) {
+      size_t size = configFile.size();
+      std::unique_ptr<char[]> buf(new char[size]);
+      configFile.readBytes(buf.get(), size);
+      configFile.close();
+      DynamicJsonBuffer jsonBuffer;
+      JsonObject& root = jsonBuffer.parseObject(buf.get());
+      if (root.success()) {
+        for (auto kv : root) {
+          if (kv.value.is<bool>()) {
+            config.set(kv.key, String(kv.value.as<bool>(), DEC));
+          } else {
+            config.set(kv.key, kv.value.as<String>());
+          }
+        }
+        if (config.save()) {
+          Serial.println("load_config: import complete");
+          SPIFFS.remove("config.json");
+          SPIFFS.remove("/config.json");
+        } else {
+          Serial.println("load_config: error saving imported config");
+        }
+      }
+    }
+  }
+
+  config.load();
+  config.dump();
+
+  if (SPIFFS.exists("config01.dat")) {
+    SPIFFS.remove("config01.dat");
+  }
 }
 
 void setup()
@@ -712,24 +510,13 @@ void setup()
   }
   */
 
-  if (!SPIFFS.exists("config.json")) {
-    if (SPIFFS.exists("/config.json")) {
-      Serial.println("renaming /config.json to config.json");
-      SPIFFS.rename("/config.json", "config.json");
-    }
-  }
-
   load_config();
-  //strcpy(config.ssid, "Hacklab");
-  //strcpy(config.wpa_password, "piranhas");
-  //strcpy(config.server_host,  "ss-tool-controller.hacklab");
-  //config.server_port = 33333;
-  //config.changed = true;
+
   wifisupervisor.begin(config);
   net.begin(config);
   netmsg.begin(config, net, clientid);
   ui.begin();
-  display.set_device(config.name);
+  display.set_device(config.getConstChar("name"));
   display.set_network(network_state_wifi, network_state_ip, network_state_session);
 
   nfc.token_present_callback = token_present;
@@ -770,9 +557,9 @@ void adc_loop()
 {
   static unsigned long last_read;
 
-  if (config.adc_interval == 0 ||
-      config.adc_multiplier == 0 ||
-      config.active_threshold == 0) {
+  if (config.getInteger("adc_interval") == 0 ||
+      config.getInteger("adc_multiplier") == 0 ||
+      config.getInteger("active_threshold") == 0) {
     if (device_active == true) {
       device_active = false;
       device_milliamps = 0;
@@ -780,7 +567,7 @@ void adc_loop()
     return;
   }
 
-  if (millis() - last_read > config.adc_interval) {
+  if (millis() - last_read > config.getInteger("adc_interval")) {
     device_milliamps = read_irms_current() * 1000;
     //char t[10];
     //snprintf(t, sizeof(t), "%dmA", device_milliamps);
@@ -789,7 +576,7 @@ void adc_loop()
     display.set_current(device_milliamps);
     last_read = millis();
 
-    if (device_milliamps > config.active_threshold) {
+    if (device_milliamps > config.getInteger("active_threshold")) {
       if (device_enabled && !device_active) {
         // only mark as active is it supposed to be enabled
         // otherwise, it's probably noise
@@ -844,7 +631,7 @@ void loop() {
   yield();
   net.loop();
   yield();
-  if (config.dev) {
+  if (config.getBoolean("dev")) {
     display.set_attempts(net.myudp.get_attempts());
   }
   if (device_enabled || device_active) {
@@ -866,8 +653,8 @@ void loop() {
   adc_loop();
   yield();
 
-  if (device_enabled == true && device_active == false && config.idle_timeout != 0) {
-    if ((millis() - session_went_idle) > config.idle_timeout) {
+  if (device_enabled == true && device_active == false && config.getInteger("idle_timeout") != 0) {
+    if ((millis() - session_went_idle) > config.getInteger("idle_timeout")) {
       device_enabled = false;
       status_updated = true;
       display.set_state(device_enabled, device_active);
@@ -881,15 +668,15 @@ void loop() {
 
   yield();
 
-  if (config.changed || first_loop) {
-    display.set_device(config.name);
+  if (config.hasChanged() || first_loop) {
+    display.set_device(config.getConstChar("name"));
     display.spinner_enabled = false; //config.dev;
-    display.current_enabled = config.dev;
+    display.current_enabled = config.getBoolean("dev");
     first_loop = false;
   }
 
-  if (config.changed) {
-    save_config();
+  if (config.hasChanged()) {
+    config.save();
   }
 
   yield();
@@ -917,7 +704,7 @@ void loop() {
   //}
   //yield();
 
-  if (status_updated || last_status_send == 0 || millis() - last_status_send > config.report_status_interval) {
+  if (status_updated || last_status_send == 0 || millis() - last_status_send > config.getInteger("report_status_interval")) {
     const char *state;
     long active_time = 0;
     long idle_time = 0;
