@@ -6,6 +6,7 @@
 #include "app_types.h"
 #include "app_network.h"
 #include "app_util.h"
+#include "ArduinoConfigDB.hpp"
 
 typedef void (*token_callback_t)(const char *uid, bool found, const char *name, uint8_t access);
 typedef void (*firmware_callback_t)(const char *url, const char *fingerprint, const char *md5);
@@ -22,7 +23,7 @@ typedef void (*reboot_callback_t)(bool force);
 class NetMsg
 {
 private:
-  config_t *_config;
+  ArduinoConfigDB *_config;
   Network *_network;
   const char *_clientid;
   void data_cmd_hello(JsonObject &data);
@@ -55,7 +56,7 @@ public:
   //void send(const uint8_t *data, int len);
   bool send_json(JsonObject &data);
   void send_keepalive();
-  void begin(config_t &config, Network &network, const char *clientid);
+  void begin(ArduinoConfigDB &config, Network &network, const char *clientid);
   void loop();
   void token(NFCToken token);
   bool get_file(const char *filename);

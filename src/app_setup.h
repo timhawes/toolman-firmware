@@ -4,18 +4,20 @@
 #include <Arduino.h>
 #include <WiFiManager.h>
 #include "app_display.h"
+#include "ArduinoConfigDB.hpp"
 
 class SetupMode
 {
 private:
   const char *_clientid;
   const char *_setup_password;
+  ArduinoConfigDB *_config;
   char server_host[100];
   char server_port[6];
   char server_password[50];
   char firmware_url[255];
 public:
-  SetupMode(const char *clientid, const char *setup_password);
+  SetupMode(const char *clientid, const char *setup_password, ArduinoConfigDB *config);
   void run();
 };
 

@@ -5,7 +5,7 @@ NetMsg::NetMsg()
 {
 }
 
-void NetMsg::begin(config_t &config, Network &network, const char *clientid)
+void NetMsg::begin(ArduinoConfigDB &config, Network &network, const char *clientid)
 {
   _config = &config;
   _network = &network;
@@ -16,7 +16,7 @@ void NetMsg::begin(config_t &config, Network &network, const char *clientid)
 
 void NetMsg::loop()
 {
-  if (millis() - last_send > _config->net_keepalive_interval) {
+  if (millis() - last_send > _config->getInteger("net_keepalive_interval")) {
     // send keepalive if we haven't transmitted in last X seconds
     send_keepalive();
   }
@@ -25,7 +25,7 @@ void NetMsg::loop()
     send_keepalive();
   }*/
 
-  if (strlen(pending_token) && millis() - last_token_query > _config->token_query_timeout) {
+  if (strlen(pending_token) && millis() - last_token_query > _config->getInteger("token_query_timeout")) {
     Serial.println("token query timed-out");
     if (token_info_callback) {
       token_info_callback(pending_token, false, "", 0);
@@ -179,7 +179,7 @@ void NetMsg::data_cmd_hello(JsonObject &data)
   JsonObject& root = jsonBuffer.createObject();
   root["cmd"] = "auth";
   root["client"] = _clientid;
-  root["password"] = _config->server_password;
+  root["password"] = _config->getString("server_password");
   _network->flush();
   _network->send_json(root);
 }
@@ -205,14 +205,11 @@ void NetMsg::data_cmd_config(JsonObject &data)
 {
   if (config_callback) {
     for (auto kv : data) {
-      //Serial.print("config key=");
-      //Serial.print(kv.key);
-      //Serial.print(" value=");
-      //Serial.println(kv.value.as<char*>());
-      config_callback(kv.key, kv.value.as<char*>());
-      //if (_config->changed) {
-      //  Serial.println("changes pending");
-      //}
+      if (strcmp(kv.key, "cmd") == 0) {
+        // ignore cmd key
+      } else {
+        config_callback(kv.key, kv.value.as<char*>());
+      }
     }
   }
 }

@@ -10,10 +10,11 @@ void setup_mode_save_callback()
   setup_mode_changed = true;
 }
 
-SetupMode::SetupMode(const char *clientid, const char *setup_password)
+SetupMode::SetupMode(const char *clientid, const char *setup_password, ArduinoConfigDB *config)
 {
   _clientid = clientid;
   _setup_password = setup_password;
+  _config = config;
   strncpy(server_host, "", sizeof(server_host));
   strncpy(server_port, "13259", sizeof(server_port));
   strncpy(server_password, "", sizeof(server_password));
@@ -25,26 +26,9 @@ void SetupMode::run()
 
   Serial.println("in setup mode now");
 
-  if (SPIFFS.exists("config.json")) {
-    File configFile = SPIFFS.open("config.json", "r");
-    if (configFile) {
-      size_t size = configFile.size();
-      std::unique_ptr<char[]> buf(new char[size]);
-      configFile.readBytes(buf.get(), size);
-      DynamicJsonBuffer jsonBuffer;
-      JsonObject& json = jsonBuffer.parseObject(buf.get());
-      json.printTo(Serial);
-      if (json.success()) {
-        Serial.println("json parsed, loading into variables");
-        strncpy(server_host, json["server_host"], sizeof(server_host));
-        snprintf(server_port, sizeof(server_port), "%d", json["server_port"]);
-        strncpy(server_port, json["server_port"], sizeof(server_port));
-        strncpy(server_password, json["server_password"], sizeof(server_password));
-        Serial.print("server_host loaded as ");
-        Serial.println(server_host);
-      }
-    }
-  }
+  strncpy(server_host, _config->getConstChar("server_host"), sizeof(server_host));
+  strncpy(server_port, _config->getConstChar("server_port"), sizeof(server_port));
+  strncpy(server_password, _config->getConstChar("server_password"), sizeof(server_password));
 
   WiFiManagerParameter custom_host("host", "host", server_host, sizeof(server_host));
   WiFiManagerParameter custom_port("port", "port", server_port, sizeof(server_port));
@@ -69,21 +53,13 @@ void SetupMode::run()
     delay(100);
     if (setup_mode_changed) {
       Serial.println("change detected");
-      DynamicJsonBuffer jsonBuffer;
-      JsonObject& json = jsonBuffer.createObject();
-      json["ssid"] = WiFi.SSID();
-      json["wpa_password"] = WiFi.psk();
-      json["server_host"] = custom_host.getValue();
-      json["server_port"] = atoi(custom_port.getValue());
-      json["server_password"] = custom_password.getValue();
-
-      Serial.println("attempting to write config.json");
-      File configFile = SPIFFS.open("config.json", "w");
-      if (configFile) {
-        json.printTo(Serial);
-        json.printTo(configFile);
-        configFile.close();
-        Serial.println("wrote config.json");
+      _config->set("ssid", WiFi.SSID());
+      _config->set("wpa_password", WiFi.psk());
+      _config->set("server_host", custom_host.getValue());
+      _config->set("server_port", custom_port.getValue());
+      _config->set("server_password", custom_password.getValue());
+      _config->save();
+      if (!_config->hasChanged()) {
         if (strlen(custom_firmware.getValue()) > 0) {
           Serial.print("installing new firmware from ");
           Serial.println(custom_firmware.getValue());
@@ -105,7 +81,7 @@ void SetupMode::run()
         delay(500);
         ESP.restart();
       } else {
-        Serial.println("failed to write config.json");
+        Serial.println("failed to save config");
         delay(500);
         ESP.restart();
       }
