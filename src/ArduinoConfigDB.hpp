@@ -16,6 +16,7 @@ public:
   bool load();
   bool save(bool force=false);
   void dump();
+  void clear();
   String getString(const char *key);
   const char* getConstChar(const char *key);
   long getInteger(const char *key);
@@ -23,6 +24,7 @@ public:
   void set(const char *key, String value);
   void set(const char *key, const char *value);
   void set(const char *key, long value);
+  void set(const char *key, int value);
   void set(const char *key, bool value);
   void remove(const char *key);
   bool hasChanged();
