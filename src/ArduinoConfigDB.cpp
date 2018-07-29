@@ -75,6 +75,12 @@ void ArduinoConfigDB::dump()
   }
 }
 
+void ArduinoConfigDB::clear()
+{
+  data.clear();
+  changed = true;
+}
+
 String ArduinoConfigDB::getString(const char *key)
 {
   return data[key];
@@ -121,6 +127,11 @@ void ArduinoConfigDB::set(const char *key, const char *value)
 }
 
 void ArduinoConfigDB::set(const char *key, long value)
+{
+  set(key, String(value, DEC));
+}
+
+void ArduinoConfigDB::set(const char *key, int value)
 {
   set(key, String(value, DEC));
 }
