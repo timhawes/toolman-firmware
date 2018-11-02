@@ -81,6 +81,11 @@ void ArduinoConfigDB::clear()
   changed = true;
 }
 
+std::map<String, String> &ArduinoConfigDB::getMap()
+{
+  return data;
+}
+
 String ArduinoConfigDB::getString(const char *key)
 {
   return data[key];
