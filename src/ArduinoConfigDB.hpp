@@ -17,6 +17,7 @@ public:
   bool save(bool force=false);
   void dump();
   void clear();
+  std::map<String, String> &getMap();
   String getString(const char *key);
   const char* getConstChar(const char *key);
   long getInteger(const char *key);
