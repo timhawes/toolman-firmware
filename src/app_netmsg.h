@@ -65,7 +65,8 @@ public:
   void send_status(const char *status, const char *user, unsigned long milliamps, long active_time, long idle_time);
   void send_status(const char *status, const char *user, unsigned long milliamps, long active_time, long idle_time,
                    unsigned long send_failip_count, unsigned long send_failbegin_count,
-                   unsigned long send_failwrite_count, unsigned long send_failend_count);
+                   unsigned long send_failwrite_count, unsigned long send_failend_count,
+                   unsigned long udp_retry_count);
   token_callback_t token_info_callback = NULL;
   firmware_callback_t firmware_callback = NULL;
   firmware_status_callback_t firmware_status_callback = NULL;

@@ -47,6 +47,7 @@ private:
   //int16_t rx_ack = -1;
   unsigned long last_receive;
   unsigned int attempts = 0;
+  unsigned long retry_count = 0; // running counter for statistics reporting
 
 public:
   MyUdp();
@@ -59,6 +60,7 @@ public:
   void debug(bool enabled);
   bool status();
   unsigned int get_attempts();
+  unsigned long get_retry_count();
   myudp_callback_t read_callback;
   fancy_callback_t fancy_callback;
 };

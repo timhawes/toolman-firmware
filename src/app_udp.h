@@ -38,6 +38,7 @@ public:
   bool connected();
   void stop();
   void flush();
+  unsigned long get_retry_count();
   received_json_callback_t received_json_callback = NULL;
   unsigned long send_failip_count = 0;
   unsigned long send_failbegin_count = 0;

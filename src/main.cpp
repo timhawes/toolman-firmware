@@ -959,7 +959,8 @@ void loop() {
     }
     //netmsg.send_status(state, user_name, device_milliamps, active_time, idle_time);
     netmsg.send_status(state, user_name, device_milliamps, active_time, idle_time,
-                       net.send_failip_count, net.send_failbegin_count, net.send_failwrite_count, net.send_failend_count);
+                       net.send_failip_count, net.send_failbegin_count, net.send_failwrite_count, net.send_failend_count,
+                       net.get_retry_count());
     last_status_send = millis();
     status_updated = false;
   }

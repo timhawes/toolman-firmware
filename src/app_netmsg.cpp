@@ -470,7 +470,7 @@ void NetMsg::send_status(const char *status, const char *user, unsigned long mil
   send_json(root);
 }
 
-void NetMsg::send_status(const char *status, const char *user, unsigned long milliamps, long active_time, long idle_time, unsigned long send_failip_count, unsigned long send_failbegin_count, unsigned long send_failwrite_count, unsigned long send_failend_count)
+void NetMsg::send_status(const char *status, const char *user, unsigned long milliamps, long active_time, long idle_time, unsigned long send_failip_count, unsigned long send_failbegin_count, unsigned long send_failwrite_count, unsigned long send_failend_count, unsigned long udp_retry_count)
 {
   StaticJsonBuffer<1024> jsonBuffer;
   JsonObject& root = jsonBuffer.createObject();
@@ -484,6 +484,7 @@ void NetMsg::send_status(const char *status, const char *user, unsigned long mil
   root["send_failbegin_count"] = send_failbegin_count;
   root["send_failwrite_count"] = send_failwrite_count;
   root["send_failend_count"] = send_failend_count;
+  root["udp_retry_count"] = udp_retry_count;
   root["millis"] = millis();
   send_json(root);
 }

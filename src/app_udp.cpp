@@ -79,3 +79,8 @@ void UdpNet::stop()
 {
 
 }
+
+unsigned long UdpNet::get_retry_count()
+{
+  return myudp.get_retry_count();
+}

@@ -214,6 +214,9 @@ void MyUdp::loop()
               client.write((uint8_t*)(msg)+2, size) == size) {
             if (client.endPacket()) {
               last_send = millis();
+              if (attempts > 0) {
+                retry_count++;
+              }
               attempts++;
               retry_interval = retry_interval * 1.2;
               if (retry_interval > max_retry) {
@@ -243,4 +246,9 @@ void MyUdp::flush()
 unsigned int MyUdp::get_attempts()
 {
   return attempts;
+}
+
+unsigned long MyUdp::get_retry_count()
+{
+  return retry_count;
 }
