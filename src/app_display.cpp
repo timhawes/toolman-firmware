@@ -69,8 +69,11 @@ void Display::loop()
 void Display::set_user(const char *name)
 {
   strncpy(user_name, name, sizeof(user_name));
-  draw_left(0, 1, name, 10);
-  draw_left(10, 1, " ", 1);
+  user_name[10] = ' ';
+  user_name[11] = ' ';
+  user_name[12] = ' ';
+  user_name[13] = 0;
+  draw_left(0, 1, name, 13);
   //_lcd->setCursor(0, 1);
   //_lcd->print(name);
   //for (int i=strlen(name)-1; i<19; i++) {
