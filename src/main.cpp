@@ -2,9 +2,6 @@
 //#define DEBUG_ESP_HTTP_CLIENT 1
 //#define DEBUG_ESP_PORT Serial
 
-#define APP_UDP_MODE 1
-#define APP_UDP2_MODE 1
-
 #include <Arduino.h>
 
 #include <ESP8266WiFi.h>
@@ -51,11 +48,7 @@ PN532 pn532(pn532i2c);
 NFC nfc(pn532i2c, pn532, pn532_reset_pin);
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 Display display(lcd);
-#ifdef APP_UDP_MODE
 UdpNet net;
-#else
-TcpNet net;
-#endif
 NetMsg netmsg;
 WifiSupervisor wifisupervisor;
 Buzzer buzzer(buzzer_pin);
