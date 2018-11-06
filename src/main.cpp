@@ -711,7 +711,7 @@ void setup()
   Serial.println(ESP.getSketchMD5());
 
   // run the ADC calculations a few times to stabilise the low-pass filter
-  for (int i; i<10; i++) {
+  for (int i=0; i<10; i++) {
     read_irms_current();
     yield();
   }
