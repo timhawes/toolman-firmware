@@ -6,7 +6,7 @@ MyUdp::MyUdp()
   buf->flush();
 }
 
-void dns_callback(const char *name, ip_addr_t *ipaddr, void *callback_arg)
+void dns_callback(const char *name, const ip_addr_t *ipaddr, void *callback_arg)
 {
   if (ipaddr) {
     (*reinterpret_cast<IPAddress*>(callback_arg)) = ipaddr->addr;
