@@ -7,7 +7,6 @@
 #include <ESP8266WiFi.h>
 #include <FS.h>
 #include <ESP8266httpUpdate.h>
-#include <Time.h>
 #include <Hash.h>
 
 #include "config.h"
@@ -245,11 +244,6 @@ void hexdump_bytes(uint8_t buffer[], int len)
     Serial.print(" ");
   }
   Serial.println();
-}
-
-void time_callback(time_t t)
-{
-  setTime(t);
 }
 
 void button_callback(uint8_t button, bool state)
@@ -749,7 +743,6 @@ void setup()
   netmsg.firmware_callback = firmware_callback;
   netmsg.firmware_status_callback = firmware_status_callback;
   netmsg.config_callback = config_callback;
-  netmsg.time_callback = time_callback;
   netmsg.file_callback = file_callback;
   netmsg.motd_callback = motd_callback;
   netmsg.reboot_callback = reboot_callback;
