@@ -19,12 +19,7 @@
 #include "app_display.h"
 #include "app_wifi.h"
 
-#ifdef APP_UDP_MODE
 #include "app_udp.h"
-#else
-#include "app_tcp.h"
-#endif
-
 #include "app_netmsg.h"
 #include "app_nfc.h"
 #include "app_setup.h"
