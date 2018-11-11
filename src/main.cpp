@@ -9,9 +9,10 @@
 #include <ESP8266httpUpdate.h>
 #include <Hash.h>
 
+#include <Buzzer.hpp>
+
 #include "config.h"
 #include "app_types.h"
-#include "app_buzzer.h"
 #include "app_display.h"
 #include "app_wifi.h"
 
@@ -138,7 +139,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       active_clock.reset();
       display.message("Access Granted", 2000);
       display.set_state(device_enabled, false);
-      buzzer.beep_later(50);
+      buzzer.beep(50);
     } else {
       display.message("Access Denied", 2000);
     }
@@ -162,7 +163,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       active_clock.reset();
       display.message("Access Granted", 2000);
       display.set_state(device_enabled, false);
-      buzzer.beep_later(50);
+      buzzer.beep(50);
       return;
     }
   }
@@ -264,12 +265,16 @@ void button_callback(uint8_t button, bool state)
     }
     case 1: {
       button_a = state;
+      if (state) {
+        buzzer.click();
+      }
       break;
     }
     case 2: {
       // B button
       button_b = state;
       if (state) {
+        buzzer.click();
         if (device_enabled == true) {
           device_enabled = false;
           status_updated = true;
@@ -858,8 +863,6 @@ void loop() {
   nfc.loop();
   yield();
   display.loop();
-  yield();
-  buzzer.loop();
   yield();
   ui.loop();
   yield();
