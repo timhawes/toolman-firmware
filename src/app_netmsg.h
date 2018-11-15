@@ -2,6 +2,7 @@
 #define APP_NETMSG_H
 
 #include "FS.h"
+#include "NFCToken.hpp"
 #include "app_types.h"
 #include "app_network.h"
 #include "app_util.h"
@@ -56,7 +57,7 @@ public:
   void send_keepalive();
   void begin(config_t &config, Network &network, const char *clientid);
   void loop();
-  void token(const char *uid);
+  void token(NFCToken token);
   bool get_file(const char *filename);
   void send_esp_data();
   bool received_message(uint8_t *data, unsigned int len);

@@ -10,6 +10,7 @@
 #include <Hash.h>
 
 #include <Buzzer.hpp>
+#include <NFCReader.hpp>
 
 #include "config.h"
 #include "app_types.h"
@@ -18,7 +19,6 @@
 
 #include "app_udp.h"
 #include "app_netmsg.h"
-#include "app_nfc.h"
 #include "app_setup.h"
 #include "app_ui.h"
 #include "tokendb.hpp"
@@ -109,16 +109,19 @@ void i2c_scan() {
   }
 }
 
-void token_present(const char *uid)
+void token_present(NFCToken token)
 {
+  Serial.print("token_present: ");
+  Serial.println(token.uidString());
   buzzer.chirp();
   display.message("Checking...");
-  netmsg.token(uid);
+  netmsg.token(token);
 }
 
-void token_removed()
+void token_removed(NFCToken token)
 {
-
+  Serial.print("token_removed: ");
+  Serial.println(token.uidString());
 }
 
 void token_info_callback(const char *uid, bool found, const char *name, uint8_t access)
@@ -233,18 +236,6 @@ void netmsg_state_callback(bool up, const char *text)
     network_state_session = false;
     display.set_network(network_state_wifi, network_state_ip, network_state_session);
   }
-}
-
-void hexdump_bytes(uint8_t buffer[], int len)
-{
-  for (int i=0; i<len; i++) {
-    if (buffer[i] < 16) {
-      Serial.print("0");
-    }
-    Serial.print(buffer[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println();
 }
 
 void button_callback(uint8_t button, bool state)

@@ -50,6 +50,7 @@ void NetMsg::send_keepalive()
   send_json(root);
 }
 
+/*
 void NetMsg::token(const char *uid)
 {
   StaticJsonBuffer<100> jsonBuffer;
@@ -57,6 +58,32 @@ void NetMsg::token(const char *uid)
   root["cmd"] = "token-auth";
   root["uid"] = uid;
   strncpy(pending_token, uid, sizeof(pending_token));
+  last_token_query = millis();
+  send_json(root);
+}
+*/
+
+void NetMsg::token(NFCToken token)
+{
+  StaticJsonBuffer<500> jsonBuffer;
+  JsonObject& root = jsonBuffer.createObject();
+  root["cmd"] = "token-auth";
+  root["uid"] = token.uidString();
+  if (token.ats_len > 0) {
+    root["ats"] = hexlify(token.ats, token.ats_len);
+  }
+  root["atqa"] = (int)token.atqa;
+  root["sak"] = (int)token.sak;
+  if (token.version_len > 0) {
+    root["version"] = hexlify(token.version, token.version_len);
+  }
+  if (token.ntag_counter > 0) {
+    root["ntag_counter"] = (long)token.ntag_counter;
+  }
+  if (token.ntag_signature_len > 0) {
+    root["ntag_signature"] = hexlify(token.ntag_signature, token.ntag_signature_len);
+  }
+  strncpy(pending_token, token.uidString().c_str(), sizeof(pending_token));
   last_token_query = millis();
   send_json(root);
 }

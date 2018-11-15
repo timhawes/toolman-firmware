@@ -31,6 +31,18 @@ int decode_hex(const char *hexstr, uint8_t *bytes, size_t max_len)
   return bytelen;
 }
 
+String hexlify(uint8_t bytes[], uint8_t len)
+{
+  String output;
+  output.reserve(len*2);
+  for (int i=0; i<len; i++) {
+    char hex[3];
+    sprintf(hex, "%02x", bytes[i]);
+    output.concat(hex);
+  }
+  return output;
+}
+
 FileWriter::FileWriter(const char *filename, const char *md5, unsigned int size)
 {
   strncpy(_filename, filename, sizeof(_filename));
