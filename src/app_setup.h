@@ -2,20 +2,22 @@
 #define APP_SETUP_H
 
 #include <Arduino.h>
-#include <WiFiManager.h>
+#include <ArduinoConfigDB.hpp>
+#include <DNSServer.h>
+#include <ESP8266WebServer.h>
+
 #include "app_display.h"
-#include "ArduinoConfigDB.hpp"
 
 class SetupMode
 {
 private:
   const char *_clientid;
   const char *_setup_password;
+  ESP8266WebServer server;
   ArduinoConfigDB *_config;
-  char server_host[100];
-  char server_port[6];
-  char server_password[50];
-  char firmware_url[255];
+  std::map<String, String> mymap;
+  void configRootHandler();
+  void configUpdateHandler();
 public:
   SetupMode(const char *clientid, const char *setup_password, ArduinoConfigDB *config);
   void run();
