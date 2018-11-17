@@ -416,14 +416,6 @@ double read_irms_current()
 
 void load_config()
 {
-  if (!(SPIFFS.exists("config.json") || SPIFFS.exists("config.dat"))) {
-    Serial.println("load_config: setting defaults");
-    config.set("ssid", "Hacklab");
-    config.set("wpa_password", "piranhas");
-    config.set("server_host", "ss-tool-controller.hacklab");
-    config.set("server_password", "password");
-  }
-
   if (SPIFFS.exists("config.json")) {
     Serial.println("load_config: importing config.json");
     File configFile = SPIFFS.open("config.json", "r");
