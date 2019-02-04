@@ -59,6 +59,12 @@ void Buzzer::play(buzzer_note *playlist)
 void Buzzer::next_note()
 {
     if (playlist_active) {
+        if (current_playlist[playlist_position].ms > max_note_length) {
+            // we might be reading from a corrupt/deallocated buffer, abort
+            stop();
+            playlist_active = false;
+            return;
+        }
         if (current_playlist[playlist_position].frequency == 0 && current_playlist[playlist_position].ms == 0) {
             stop();
             playlist_active = false;

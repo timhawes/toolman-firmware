@@ -24,6 +24,7 @@ private:
     void stop();
     void next_note();
     bool active = false;
+    const int max_note_length = 5000;
 public:
     Buzzer(int pin, bool modulate=false, double default_frequency=2000);
     void beep(unsigned int ms);
