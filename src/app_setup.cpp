@@ -1,59 +1,50 @@
 #include "app_setup.h"
 #include <FS.h>
+#include <ArduinoJson.h>
 
-SetupMode::SetupMode(const char *clientid, const char *setup_password, ArduinoConfigDB *config)
-{
+static const char html[] PROGMEM =
+    "<form method='POST' action='/update' />\n"
+    "<table>\n"
+    "<tr><th>Key</th><th>Old Value</th><th>New Value</th></tr>\n"
+    "<tr><th>SSID</th><td><input type='text' name='ssid' /></td></tr>\n"
+    "<tr><th>WPA Password</th><td><input type='text' name='wpa_password' /></td></tr>\n"
+    "<tr><th>Server Host</th><td><input type='text' name='server_host' /></td></tr>\n"
+    "<tr><th>Server Port</th><td><input type='text' name='server_port' /></td></tr>\n"
+    "<tr><th>Server TLS</th><td><input type='checkbox' name='server_tls_enabled' /></td></tr>\n"
+    "<tr><th>Server Password</th><td><input type='text' name='server_password' /></td></tr>\n"
+    "</table>\n"
+    "<input type='submit' value='Save' />"
+    "</form>\n";
+
+SetupMode::SetupMode(const char *clientid, const char *setup_password) {
   _clientid = clientid;
   _setup_password = setup_password;
-  _config = config;
 }
 
-void SetupMode::configRootHandler()
-{
-    mymap = _config->getMap();
-    String output = "";
-    output += "<form method='POST' action='/update' />\n";
-    output += "<table>\n";
-    output += "<tr><th>Key</th><th>Old Value</th><th>New Value</th></tr>\n";
-    for (auto kv : mymap) {
-        output += "<tr><td>" + kv.first + "</td><td>";
-        if (kv.first.endsWith("password")) {
-        output += "[hidden]";
-        } else {
-        output += kv.second;
-        }
-        output += "</td><td><input type='text' name='v" + kv.first + "' /></td></tr>\n";
-    }
-    /*
-    for (int i=0; i<5; i++) {
-        output += "<tr><td><input type='text' name='k' /></td><td></td><td><input type='text' name='v' /></td></tr>\n";
-    }
-    */
-    output += "</table>\n";
-    output += "<input type='submit' value='Save' />";
-    output += "</form>\n";
-    server.send(200, "text/html", output);
+void SetupMode::configRootHandler() {
+  String output = FPSTR(html);
+  server.send(200, "text/html", output);
 }
 
-void SetupMode::configUpdateHandler()
-{
+void SetupMode::configUpdateHandler() {
+  DynamicJsonBuffer jb;
+  JsonObject &root = jb.createObject();
   for (int i=0; i<server.args(); i++) {
-    if (server.arg(i).length() > 0) {
-      Serial.print("updating config ");
-      Serial.print(server.argName(i).substring(1));
-      Serial.print("=");
-      Serial.println(server.arg(i));
-      _config->set(server.argName(i).substring(1).c_str(), server.arg(i));
-    }
+    if (server.argName(i) == "ssid") root["ssid"] = server.arg(i);
+    if (server.argName(i) == "wpa_password") root["wpa_password"] = server.arg(i);
+    if (server.argName(i) == "server_host") root["server_host"] = server.arg(i);
+    if (server.argName(i) == "server_port") root["server_port"] = server.arg(i).toInt();
+    if (server.argName(i) == "server_tls") root["server_tls"] = (bool)server.arg(i).toInt();
+    if (server.argName(i) == "server_password") root["server_password"] = server.arg(i);
   }
-  _config->dump();
-  _config->save();
+  File file = SPIFFS.open("config.json", "w");
+  root.printTo(file);
+  file.close();
   server.sendHeader("Location", "/");
   server.send(301);
 }
 
-void SetupMode::run()
-{
+void SetupMode::run() {
   Serial.println("in setup mode now");
 
   WiFi.disconnect();

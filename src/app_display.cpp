@@ -94,8 +94,13 @@ void Display::set_network(bool up)
   }
 }
 
-void Display::set_network(bool wifi_up, bool ip_up, bool session_up)
+void Display::set_network(bool wifi_up, bool tcp_up, bool ready)
 {
+  if (restarting) {
+    // don't show network status on the "Restarting..." screen
+    return;
+  }
+  
   String m = "";
 
   if (wifi_up) {
@@ -104,19 +109,19 @@ void Display::set_network(bool wifi_up, bool ip_up, bool session_up)
     m += "WiFi\x04 ";
   }
 
-  if (ip_up) {
-    m += "IP\x03 ";
+  if (tcp_up) {
+    m += "TCP\x03 ";
   } else {
-    m += "IP\x04 ";
+    m += "TCP\x04 ";
   }
 
-  if (session_up) {
-    m += "Session\x03";
+  if (ready) {
+    m += "Ready\x03";
   } else {
-    m += "Session\x04";
+    m += "Ready\x04";
   }
 
-  if (wifi_up && ip_up && session_up) {
+  if (wifi_up && tcp_up && ready) {
     message(m.c_str(), 2000);
   } else {
     message(m.c_str());
@@ -147,7 +152,7 @@ void Display::set_state(bool enabled, bool active)
   }
 }
 
-void Display::set_current(unsigned long milliamps)
+void Display::set_current(unsigned int milliamps)
 {
   char t[10];
 
@@ -161,7 +166,7 @@ void Display::set_current(unsigned long milliamps)
 
   //snprintf(t, sizeof(t), "%d.%dmA", milliamps/1000, milliamps/100);
 
-  snprintf(t, sizeof(t), "%dmA", milliamps);
+  snprintf(t, sizeof(t), "%umA", milliamps);
 
   draw_left(0, 3, t, 7);
 }
@@ -226,6 +231,7 @@ void Display::restart_warning()
   _lcd->clear();
   _lcd->setCursor(0, 1);
   _lcd->print("   Restarting...");
+  restarting = true;
 }
 
 void Display::setup_mode(const char *ssid)
@@ -236,6 +242,7 @@ void Display::setup_mode(const char *ssid)
   _lcd->setCursor(0, 2);
   _lcd->print(" SSID: ");
   _lcd->print(ssid);
+  restarting = true;
 }
 
 void Display::firmware_warning()
@@ -245,6 +252,7 @@ void Display::firmware_warning()
   _lcd->print(" Updating firmware");
   _lcd->setCursor(0, 2);
   _lcd->print(" Do not switch off");
+  restarting = true;
 }
 
 void Display::firmware_progress(unsigned int progress)
@@ -256,6 +264,7 @@ void Display::firmware_progress(unsigned int progress)
 void Display::refresh()
 {
   _lcd->clear();
+  restarting = false;
 }
 
 void Display::backlight_off()

@@ -1,28 +1,24 @@
-//#define ASYNC_TCP_SSL_ENABLED 1
-//#define DEBUG_ESP_HTTP_CLIENT 1
-//#define DEBUG_ESP_PORT Serial
-
 #include <Arduino.h>
-
 #include <ESP8266WiFi.h>
 #include <FS.h>
-#include <ESP8266httpUpdate.h>
 #include <Hash.h>
 
+#include <ArduinoJson.h>
 #include <Buzzer.hpp>
 #include <NFCReader.hpp>
+#include <base64.hpp>
 
-#include "config.h"
-#include "app_types.h"
+#include "AppConfig.hpp"
+#include "FileWriter.hpp"
+#include "FirmwareWriter.hpp"
+#include "PowerReader.hpp"
 #include "app_display.h"
-#include "app_wifi.h"
-
-#include "app_udp.h"
-#include "app_netmsg.h"
+#include "app_network.h"
 #include "app_setup.h"
 #include "app_ui.h"
+#include "app_util.h"
+#include "config.h"
 #include "tokendb.hpp"
-#include "ArduinoConfigDB.hpp"
 
 const uint8_t buzzer_pin = 15;
 const uint8_t sda_pin = 13;
@@ -36,38 +32,33 @@ const uint8_t button_b_pin = 5;
 char clientid[10];
 
 // config
-ArduinoConfigDB config;
-
-// firmware url for OTA update
-char firmware_url[255] = "";
-char firmware_fingerprint[255] = "";
-char firmware_md5[33] = "";
-bool firmware_available = false;
+AppConfig config;
 
 PN532_I2C pn532i2c(Wire);
 PN532 pn532(pn532i2c);
 NFC nfc(pn532i2c, pn532, pn532_reset_pin);
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 Display display(lcd);
-UdpNet net;
-NetMsg netmsg;
-WifiSupervisor wifisupervisor;
+Network net;
 Buzzer buzzer(buzzer_pin);
 UI ui(flash_pin, button_a_pin, button_b_pin);
 
 char user_name[20];
+char last_user[20];
 uint8_t user_access = 0;
+char pending_token[15];
+unsigned long pending_token_time = 0;
 
 bool firmware_restart_pending = false;
 bool reboot_pending = false;
 bool device_enabled = false; // the relay should be switched on
 bool device_relay = false; // the relay *is* switched on
 bool device_active = false; // the current sensor is registering a load
-unsigned long device_milliamps = 0;
+unsigned int device_milliamps = 0;
 
-bool network_state_wifi = false;
-bool network_state_ip = false;
-bool network_state_session = false;
+Ticker token_lookup_timer;
+Ticker file_timeout_timer;
+Ticker firmware_timeout_timer;
 
 MilliClock session_clock;
 MilliClock active_clock;
@@ -76,57 +67,57 @@ unsigned long session_went_active;
 unsigned long session_went_idle;
 bool status_updated = false;
 
-String file_name;
-File file_handle;
+FileWriter file_writer;
+FirmwareWriter firmware_writer;
+PowerReader power_reader;
 
-void i2c_scan() {
-  uint8_t error, address, nDevices;
-  Serial.println("scanning i2c devices");
-  for(address = 1; address < 127; address++)
-  {
-    // The i2c_scanner uses the return value of
-    // the Write.endTransmisstion to see if
-    // a device did acknowledge to the address.
-    Wire.beginTransmission(address);
-    error = Wire.endTransmission();
+buzzer_note network_tune[50];
+buzzer_note ascending[] = { {1000, 250}, {1500, 250}, {2000, 250}, {0, 0} };
 
-    if (error == 0)
-    {
-      Serial.print("I2C device found at address 0x");
-      if (address<16)
-        Serial.print("0");
-      Serial.print(address,HEX);
-      Serial.println("  !");
+void send_state()
+{
+  const char *state = "";
+  long active_time = 0;
+  long idle_time = 0;
 
-      nDevices++;
+  if (device_enabled) {
+    if (device_active) {
+      state = "active";
+      active_time = millis() - session_went_active;
+    } else {
+      state = "idle";
+      idle_time = millis() - session_went_idle;
     }
-    else if (error==4)
-    {
-      Serial.print("Unknown error at address 0x");
-      if (address<16)
-        Serial.print("0");
-      Serial.println(address,HEX);
+  } else {
+    if (device_active) {
+      state = "wait";
+      active_time = millis() - session_went_active;
+    } else {
+      state = "standby";
+      strcpy(user_name, "");
     }
   }
-}
 
-void token_present(NFCToken token)
-{
-  Serial.print("token_present: ");
-  Serial.println(token.uidString());
-  buzzer.chirp();
-  display.message("Checking...");
-  netmsg.token(token);
-}
+  DynamicJsonBuffer jb;
+  JsonObject &obj = jb.createObject();
+  obj["cmd"] = "state_info";
+  obj["state"] = state;
+  obj["user"] = user_name;
+  obj["milliamps"] = device_milliamps;
+  obj["active_time"] = active_time;
+  obj["idle_time"] = idle_time;
+  net.send_json(obj);
 
-void token_removed(NFCToken token)
-{
-  Serial.print("token_removed: ");
-  Serial.println(token.uidString());
+  status_updated = false;
 }
 
 void token_info_callback(const char *uid, bool found, const char *name, uint8_t access)
 {
+  token_lookup_timer.detach();
+
+  Serial.print("token_info_callback: time=");
+  Serial.println(millis()-pending_token_time, DEC);
+
   if (found) {
     if (access > 0) {
       strncpy(user_name, name, sizeof(user_name));
@@ -150,7 +141,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
     return;
   }
 
-  TokenDB tokendb("tokens");
+  TokenDB tokendb("tokens.dat");
   if (tokendb.lookup(uid)) {
     if (tokendb.get_access_level() > 0) {
       strncpy(user_name, tokendb.get_user().c_str(), sizeof(user_name));
@@ -176,67 +167,95 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
   return;
 }
 
-void file_callback(const uint8_t *data, bool eof)
+void token_present(NFCToken token)
 {
-  //if (eof) {
-  //  Serial.println("file-eof");
-  //  if (file_handle) {
-  //    Serial.println("closing file");
-  //    file_handle.close();
-  //  }
-  //} else {
-  //  Serial.println("file-data");
-  //  //Serial.println(data);
-  //  //Serial.println(".");
-  //  if (file_handle) {
-  //    file_handle.write(data);
-  //  }
-  //}
-}
-
-void device_name_callback(const char *name)
-{
-  display.set_device(name);
-}
-
-void wifi_connected_callback()
-{
-  //display.message("WiFi up", 2000);
-  network_state_wifi = true;
-  display.set_network(network_state_wifi, network_state_ip, network_state_session);
-  net.wifi_connected();
-}
-
-void wifi_disconnected_callback()
-{
-  network_state_wifi = false;
-  display.set_network(network_state_wifi, network_state_ip, network_state_session);
-  net.wifi_disconnected();
-}
-
-void network_state_callback(bool up, const char *text)
-{
-  if (up) {
-    netmsg.network_changed();
-    network_state_ip = true;
-    display.set_network(network_state_wifi, network_state_ip, network_state_session);
-    //display.message(text, 2000);
-  } else {
-    //display.message(text);
-    network_state_ip = false;
-    display.set_network(network_state_wifi, network_state_ip, network_state_session);
+  Serial.print("token_present: ");
+  Serial.println(token.uidString());
+  buzzer.chirp();
+  display.message("Checking...");
+  
+  DynamicJsonBuffer jb;
+  JsonObject &obj = jb.createObject();
+  obj["cmd"] = "token_auth";
+  obj["uid"] = token.uidString();
+  if (token.ats_len > 0) {
+    obj["ats"] = hexlify(token.ats, token.ats_len);
   }
+  obj["atqa"] = (int)token.atqa;
+  obj["sak"] = (int)token.sak;
+  if (token.version_len > 0) {
+    obj["version"] = hexlify(token.version, token.version_len);
+  }
+  if (token.ntag_counter > 0) {
+    obj["ntag_counter"] = (long)token.ntag_counter;
+  }
+  if (token.ntag_signature_len > 0) {
+    obj["ntag_signature"] = hexlify(token.ntag_signature, token.ntag_signature_len);
+  }
+  if (token.data_len > 0) {
+    obj["data"] = hexlify(token.data, token.data_len);
+  }
+  if (token.read_time > 0) {
+    obj["read_time"] = token.read_time;
+  }
+  
+  strncpy(pending_token, token.uidString().c_str(), sizeof(pending_token));
+  token_lookup_timer.once_ms(config.token_query_timeout, std::bind(&token_info_callback, pending_token, false, "", 0));
+
+  pending_token_time = millis();
+  net.send_json(obj);
 }
 
-void netmsg_state_callback(bool up, const char *text)
+void token_removed(NFCToken token)
 {
-  if (up) {
-    network_state_session = true;
-    display.set_network(network_state_wifi, network_state_ip, network_state_session);
+  Serial.print("token_removed: ");
+  Serial.println(token.uidString());
+}
+
+void load_config()
+{
+  config.LoadJson();
+  net.set_wifi(config.ssid, config.wpa_password);
+  net.set_server(config.server_host, config.server_port, config.server_password,
+                 config.server_tls_enabled, config.server_tls_verify,
+                 config.server_fingerprint1, config.server_fingerprint2);
+  nfc.read_counter = config.nfc_read_counter;
+  nfc.read_data = config.nfc_read_data;
+  nfc.read_sig = config.nfc_read_sig;
+  display.set_current(config.dev);
+  display.set_device(config.name);
+  ui.swap_buttons(config.swap_buttons);
+  power_reader.SetInterval(config.adc_interval);
+  power_reader.SetAdcAmpRatio(config.adc_multiplier);
+}
+
+void send_file_info(const char *filename)
+{
+  DynamicJsonBuffer jb;
+  JsonObject &obj = jb.createObject();
+  obj["cmd"] = "file_info";
+  obj["filename"] = filename;
+
+  File f = SPIFFS.open(filename, "r");
+  if (f) {
+    MD5Builder md5;
+    md5.begin();
+    while (f.available()) {
+      uint8_t buf[256];
+      size_t buflen;
+      buflen = f.readBytes((char*)buf, 256);
+      md5.add(buf, buflen);
+    }
+    md5.calculate();
+    obj["size"] = f.size();
+    obj["md5"] = md5.toString();
+    f.close();
   } else {
-    network_state_session = false;
-    display.set_network(network_state_wifi, network_state_ip, network_state_session);
+    obj["size"] = (char*)NULL;
+    obj["md5"] = (char*)NULL;
   }
+
+  net.send_json(obj);
 }
 
 void button_callback(uint8_t button, bool state)
@@ -250,7 +269,9 @@ void button_callback(uint8_t button, bool state)
       if (state) {
         Serial.println("flash button pressed, going into setup mode");
         display.setup_mode(clientid);
-        SetupMode setup_mode(clientid, setup_password, &config);
+        net.stop();
+        delay(1000);
+        SetupMode setup_mode(clientid, setup_password);
         setup_mode.run();
       }
       break;
@@ -277,13 +298,14 @@ void button_callback(uint8_t button, bool state)
     }
   }
 
-  if (button_a && button_b && config.getBoolean("dev")) {
+  if (button_a && button_b && config.dev) {
     display.restart_warning();
     ESP.restart();
   }
 }
 
-void firmware_callback(const char *url, const char *fingerprint, const char *md5)
+/*
+void firmware_url_callback(const char *url, const char *fingerprint, const char *md5)
 {
   String current_md5 = ESP.getSketchMD5();
   if (strncmp(current_md5.c_str(), md5, 32) == 0) {
@@ -296,6 +318,7 @@ void firmware_callback(const char *url, const char *fingerprint, const char *md5
     firmware_available = true;
   }
 }
+*/
 
 void firmware_status_callback(bool active, bool restart, unsigned int progress)
 {
@@ -312,144 +335,452 @@ void firmware_status_callback(bool active, bool restart, unsigned int progress)
   }
 }
 
-bool received_json_callback(char *data)
+void file_timeout_callback()
 {
-  return netmsg.receive_json(data);
+  file_writer.Abort();
+
+  DynamicJsonBuffer jb;
+  JsonObject &root = jb.createObject();
+  root["cmd"] = "file_write_error";
+  root["error"] = "file write timed-out";
+  net.send_json(root);
 }
 
-void config_callback(const char *key, const JsonVariant& value)
+void firmware_timeout_callback()
 {
-  //Serial.print("config callback ");
-  //Serial.print(key);
-  //Serial.print("=");
-  //Serial.println((const char*)value);
-  config.set(key, value.as<String>());
+  file_writer.Abort();
+
+  DynamicJsonBuffer jb;
+  JsonObject &root = jb.createObject();
+  root["cmd"] = "firmware_write_error";
+  root["error"] = "firmware write timed-out";
+  net.send_json(root);
 }
 
-void motd_callback(const char *motd)
+void set_file_timeout(bool enabled) {
+  if (enabled) {
+    file_timeout_timer.once(60, file_timeout_callback);
+  } else {
+    file_timeout_timer.detach();
+  }
+}
+
+void set_firmware_timeout(bool enabled) {
+  if (enabled) {
+    firmware_timeout_timer.once(60, firmware_timeout_callback);
+  } else {
+    firmware_timeout_timer.detach();
+  }
+}
+
+void network_state_callback(bool wifi_up, bool tcp_up, bool ready)
 {
-  display.set_motd(motd);
+  display.set_network(wifi_up, tcp_up, ready);
+}
+
+/*************************************************************************
+ * NETWORK COMMANDS                                                      *
+ *************************************************************************/
+
+void network_cmd_buzzer_beep(JsonObject &obj)
+{
+  if (obj["hz"]) {
+    buzzer.beep(obj["ms"].as<int>(), obj["hz"].as<int>());
+  } else {
+    buzzer.beep(obj["ms"].as<int>());
+  }
+}
+
+void network_cmd_buzzer_chirp(JsonObject &obj)
+{
+  buzzer.chirp();
+}
+
+void network_cmd_buzzer_click(JsonObject &obj)
+{
+  buzzer.click();
+}
+
+void network_cmd_file_data(JsonObject &obj)
+{
+  const char *b64 = obj.get<const char*>("data");
+  unsigned int binary_length = decode_base64_length((unsigned char*)b64);
+  uint8_t binary[binary_length];
+  binary_length = decode_base64((unsigned char*)b64, binary);
+
+  set_file_timeout(false);
+
+  DynamicJsonBuffer jb;
+  JsonObject &reply = jb.createObject();
+
+  if (file_writer.Add(binary, binary_length, obj["position"])) {
+    if (obj["eof"].as<bool>() == 1) {
+      if (file_writer.Commit()) {
+        // finished and successful
+        reply["cmd"] = "file_write_ok";
+        reply["filename"] = obj["filename"];
+        net.send_json(reply);
+        send_file_info(obj["filename"]);
+        if (obj["filename"] == "config.json") {
+          load_config();
+        }
+      } else {
+        // finished but commit failed
+        reply["cmd"] = "file_write_error";
+        reply["filename"] = obj["filename"];
+        reply["error"] = "file_writer.Commit() failed";
+        net.send_json(reply);
+      }
+    } else {
+      // more data required
+      reply["cmd"] = "file_continue";
+      reply["filename"] = obj["filename"];
+      reply["position"] = obj["position"].as<int>() + binary_length;
+      net.send_json(reply);
+    }
+  } else {
+    reply["cmd"] = "file_write_error";
+    reply["filename"] = obj["filename"];
+    reply["error"] = "file_writer.Add() failed";
+    net.send_json(reply);
+  }
+
+  set_file_timeout(file_writer.Running());
+}
+
+void network_cmd_file_delete(JsonObject &obj)
+{
+  DynamicJsonBuffer jb;
+  JsonObject &reply = jb.createObject();
+
+  if (SPIFFS.remove((const char*)obj["filename"])) {
+    reply["cmd"] = "file_delete_ok";
+    reply["filename"] = obj["filename"];
+    net.send_json(reply);
+  } else {
+    reply["cmd"] = "file_delete_error";
+    reply["error"] = "failed to delete file";
+    reply["filename"] = obj["filename"];
+    net.send_json(reply);
+  }
+}
+
+void network_cmd_file_dir_query(JsonObject &obj)
+{
+  DynamicJsonBuffer jb;
+  JsonObject &reply = jb.createObject();
+  JsonArray &files = jb.createArray();
+  reply["cmd"] = "file_dir_info";
+  reply["path"] = obj["path"];
+  if (SPIFFS.exists((const char*)obj["path"])) {
+    Dir dir = SPIFFS.openDir((const char*)obj["path"]);
+    while (dir.next()) {
+      files.add(dir.fileName());
+    }
+    reply["filenames"] = files;
+  } else {
+    reply["filenames"] = (char*)NULL;
+  }
+  net.send_json(reply);
+}
+
+void network_cmd_file_query(JsonObject &obj)
+{
+  send_file_info(obj["filename"]);
+}
+
+void network_cmd_file_rename(JsonObject &obj)
+{
+  DynamicJsonBuffer jb;
+  JsonObject &reply = jb.createObject();
+
+  if (SPIFFS.rename((const char*)obj["old_filename"], (const char*)obj["new_filename"])) {
+    reply["cmd"] = "file_rename_ok";
+    reply["old_filename"] = obj["old_filename"];
+    reply["new_filename"] = obj["new_filename"];
+    net.send_json(reply);
+  } else {
+    reply["cmd"] = "file_rename_error";
+    reply["error"] = "failed to rename file";
+    reply["old_filename"] = obj["old_filename"];
+    reply["new_filename"] = obj["new_filename"];
+    net.send_json(reply);
+  }
+}
+
+void network_cmd_file_write(JsonObject &obj)
+{
+  DynamicJsonBuffer jb;
+  JsonObject &reply = jb.createObject();
+
+  set_file_timeout(false);
+
+  if (file_writer.Begin(obj["filename"], obj["md5"], obj["size"])) {
+    if (file_writer.UpToDate()) {
+        reply["cmd"] = "file_write_error";
+        reply["filename"] = obj["filename"];
+        reply["error"] = "already up to date";
+        net.send_json(reply);
+    } else {
+      if (file_writer.Open()) {
+        reply["cmd"] = "file_continue";
+        reply["filename"] = obj["filename"];
+        reply["position"] = 0;
+        net.send_json(reply);
+      } else {
+        reply["cmd"] = "file_write_error";
+        reply["filename"] = obj["filename"];
+        reply["error"] = "file_writer.Open() failed";
+        net.send_json(reply);
+      }
+    }
+  } else {
+    reply["cmd"] = "file_write_error";
+    reply["filename"] = obj["filename"];
+    reply["error"] = "file_writer.Begin() failed";
+    net.send_json(reply);
+  }
+
+  set_file_timeout(file_writer.Running());
+}
+
+void network_cmd_firmware_data(JsonObject &obj)
+{
+  const char *b64 = obj.get<const char*>("data");
+  unsigned int binary_length = decode_base64_length((unsigned char*)b64);
+  uint8_t binary[binary_length];
+  binary_length = decode_base64((unsigned char*)b64, binary);
+
+  set_firmware_timeout(false);
+
+  DynamicJsonBuffer jb;
+  JsonObject &reply = jb.createObject();
+
+  if (firmware_writer.Add(binary, binary_length, obj["position"])) {
+    if (obj["eof"].as<bool>() == 1) {
+      if (firmware_writer.Commit()) {
+        // finished and successful
+        reply["cmd"] = "firmware_write_ok";
+        net.send_json(reply);
+        firmware_status_callback(false, true, 100);
+      } else {
+        // finished but commit failed
+        reply["cmd"] = "firmware_write_error";
+        reply["error"] = "firmware_writer.Commit() failed";
+        reply["updater_error"] = firmware_writer.GetUpdaterError();
+        net.send_json(reply);
+        firmware_status_callback(false, false, 0);
+      }
+    } else {
+      // more data required
+      reply["cmd"] = "firmware_continue";
+      reply["position"] = obj["position"].as<int>() + binary_length;
+      net.send_json(reply);
+      firmware_status_callback(true, false, firmware_writer.Progress());
+    }
+  } else {
+    reply["cmd"] = "firmware_write_error";
+    reply["error"] = "firmware_writer.Add() failed";
+    reply["updater_error"] = firmware_writer.GetUpdaterError();
+    net.send_json(reply);
+    firmware_status_callback(false, false, 0);
+  }
+
+  set_firmware_timeout(firmware_writer.Running());
+}
+
+void network_cmd_firmware_write(JsonObject &obj)
+{
+  DynamicJsonBuffer jb;
+  JsonObject &reply = jb.createObject();
+
+  set_firmware_timeout(false);
+
+  if (firmware_writer.Begin(obj["md5"], obj["size"])) {
+    if (firmware_writer.UpToDate()) {
+      reply["cmd"] = "firmware_write_error";
+      reply["md5"] = obj["md5"];
+      reply["error"] = "already up to date";
+      reply["updater_error"] = firmware_writer.GetUpdaterError();
+      net.send_json(reply);
+    } else {
+      if (firmware_writer.Open()) {
+        reply["cmd"] = "firmware_continue";
+        reply["md5"] = obj["md5"];
+        reply["position"] = 0;
+        net.send_json(reply);
+      } else {
+        reply["cmd"] = "firmware_write_error";
+        reply["md5"] = obj["md5"];
+        reply["error"] = "firmware_writer.Open() failed";
+        reply["updater_error"] = firmware_writer.GetUpdaterError();
+        net.send_json(reply);
+      }
+    }
+  } else {
+    reply["cmd"] = "firmware_write_error";
+    reply["md5"] = obj["md5"];
+    reply["error"] = "firmware_writer.Begin() failed";
+    reply["updater_error"] = firmware_writer.GetUpdaterError();
+    net.send_json(reply);
+  }
+
+  set_firmware_timeout(firmware_writer.Running());
+}
+
+void network_cmd_metrics_query(JsonObject &obj)
+{
+  DynamicJsonBuffer jb;
+  JsonObject &reply = jb.createObject();
+  reply["cmd"] = "metrics_info";
+  reply["esp_free_heap"] = ESP.getFreeHeap();
+  reply["net_rx_buf_max"] = net.rx_buffer_high_watermark;
+  reply["net_tcp_reconns"] = net.client_reconnections;
+  reply["net_tx_buf_max"] = net.tx_buffer_high_watermark;
+  reply["net_tx_delay_count"] = net.tx_delay_count;
+  reply["net_wifi_reconns"] = net.wifi_reconnections;
+  net.send_json(reply);
+}
+
+void network_cmd_motd(JsonObject &obj)
+{
+  display.set_motd(obj["motd"]);
   display.set_state(device_enabled, device_active);
 }
 
-void reboot_callback(bool force)
+void network_cmd_ping(JsonObject &obj)
+{
+  DynamicJsonBuffer jb;
+  JsonObject &reply = jb.createObject();
+  reply["cmd"] = "pong";
+  if (obj["seq"]) {
+    reply["seq"] = obj["seq"];
+  }
+  if (obj["timestamp"]) {
+    reply["timestamp"] = obj["timestamp"];
+  }
+  net.send_json(reply);
+}
+
+void network_cmd_reboot(JsonObject &obj)
 {
   reboot_pending = true;
-  if (force) {
+  if (obj["force"]) {
     display.restart_warning();
     ESP.restart();
   }
 }
 
-float read_current()
+void network_cmd_state_query(JsonObject &obj)
 {
-  const int valcount = 50;
-  const int readings = 4;
-  uint16_t values[valcount];
-  unsigned int max_val = 0;
-  unsigned int min_val = 1024*readings;
-
-  for (int i=0; i<valcount; i++) {
-    values[i] = 0;
-    for (int j=0; j<readings; j++) {
-      values[i] += analogRead(A0);
-    }
-  }
-
-  for (int i=0; i<valcount; i++) {
-    if (values[i] > max_val) {
-      max_val = values[i];
-    }
-    if (values[i] < min_val) {
-      min_val = values[i];
-    }
-  }
-
-  float diff = (float)(max_val - min_val) / 4.0;
-  float adc_to_volts = 1.0 / 1024.0;
-  float vpp = diff * adc_to_volts;
-  float vrms = vpp / 1.414213562 / 2;
-  float amps = vrms * 100.0;
-
-  Serial.print("adc_to_volts="); Serial.println(adc_to_volts, 6);
-  Serial.print("min="); Serial.println(min_val, DEC);
-  Serial.print("max="); Serial.println(max_val, DEC);
-  Serial.print("diff="); Serial.println(diff, DEC);
-  Serial.print("Vpp="); Serial.println(vpp, 6);
-  Serial.print("Vrms="); Serial.println(vrms, 6);
-  Serial.print("amps="); Serial.println(amps, 6);
-
-  return ((float)(max_val - min_val) / (float)readings) * config.getInteger("adc_multiplier") / 1000;
-  //return (unsigned long)((max_val - min_val) * config.adc_multiplier * 1000) / (config.adc_divider * readings);
+  send_state();
 }
 
-double read_irms_current()
+void network_cmd_system_query(JsonObject &obj)
 {
-  const int sample_count = 1000;
-  static double offsetI = 0;
-  double Irms;
-  double sumI = 0;
-
-  for (unsigned int n = 0; n < sample_count; n++)
-  {
-    double sampleI;
-    double filteredI;
-    double sqI;
-
-    sampleI = analogRead(A0);
-
-    // Digital low pass filter extracts the 2.5 V or 1.65 V dc offset,
-    // then subtract this - signal is now centered on 0 counts.
-    offsetI = (offsetI + (sampleI-offsetI)/1024);
-    filteredI = sampleI - offsetI;
-
-    // Root-mean-square method current
-    // 1) square current values
-    sqI = filteredI * filteredI;
-    // 2) sum
-    sumI += sqI;
-  }
-
-  Irms = config.getInteger("adc_multiplier") * sqrt(sumI / sample_count) / 1024;
-  return Irms;
+  DynamicJsonBuffer jb;
+  JsonObject &reply = jb.createObject();
+  reply["cmd"] = "system_info";
+  reply["esp_free_heap"] = ESP.getFreeHeap();
+  reply["esp_chip_id"] = ESP.getChipId();
+  reply["esp_sdk_version"] = ESP.getSdkVersion();
+  reply["esp_core_version"] = ESP.getCoreVersion();
+  reply["esp_boot_version"] = ESP.getBootVersion();
+  reply["esp_boot_mode"] = ESP.getBootMode();
+  reply["esp_cpu_freq_mhz"] = ESP.getCpuFreqMHz();
+  reply["esp_flash_chip_id"] = ESP.getFlashChipId();
+  reply["esp_flash_chip_real_size"] = ESP.getFlashChipRealSize();
+  reply["esp_flash_chip_size"] = ESP.getFlashChipSize();
+  reply["esp_flash_chip_speed"] = ESP.getFlashChipSpeed();
+  reply["esp_flash_chip_mode"] = ESP.getFlashChipMode();
+  reply["esp_flash_chip_size_by_chip_id"] = ESP.getFlashChipSizeByChipId();
+  reply["esp_sketch_size"] = ESP.getSketchSize();
+  reply["esp_sketch_md5"] = ESP.getSketchMD5();
+  reply["esp_free_sketch_space"] = ESP.getFreeSketchSpace();
+  reply["esp_reset_reason"] = ESP.getResetReason();
+  reply["esp_reset_info"] = ESP.getResetInfo();
+  reply["esp_cycle_count"] = ESP.getCycleCount();
+  reply["millis"] = millis();
+  net.send_json(reply);
 }
 
-void load_config()
+void network_cmd_token_info(JsonObject &obj)
 {
-  if (SPIFFS.exists("config.json")) {
-    Serial.println("load_config: importing config.json");
-    File configFile = SPIFFS.open("config.json", "r");
-    if (configFile) {
-      size_t size = configFile.size();
-      std::unique_ptr<char[]> buf(new char[size]);
-      configFile.readBytes(buf.get(), size);
-      configFile.close();
-      DynamicJsonBuffer jsonBuffer;
-      JsonObject& root = jsonBuffer.parseObject(buf.get());
-      if (root.success()) {
-        for (auto kv : root) {
-          if (kv.value.is<bool>()) {
-            config.set(kv.key, String(kv.value.as<bool>(), DEC));
-          } else {
-            config.set(kv.key, kv.value.as<String>());
-          }
-        }
-        if (config.save()) {
-          Serial.println("load_config: import complete");
-          SPIFFS.remove("config.json");
-          SPIFFS.remove("/config.json");
-        } else {
-          Serial.println("load_config: error saving imported config");
-        }
-      }
-    }
+  token_info_callback(obj["uid"], obj["found"], obj["name"], obj["access"]);
+}
+
+void network_cmd_tune(JsonObject &obj)
+{
+  const char *b64 = obj.get<const char*>("data");
+  unsigned int binary_length = decode_base64_length((unsigned char*)b64);
+  uint8_t binary[binary_length];
+  binary_length = decode_base64((unsigned char*)b64, binary);
+
+  memset(network_tune, 0, sizeof(network_tune));
+  if (binary_length > sizeof(network_tune)) {
+    memcpy(network_tune, binary, sizeof(network_tune));
+  } else {
+    memcpy(network_tune, binary, binary_length);
   }
 
-  config.load();
-  config.dump();
+  buzzer.play(network_tune);
+}
 
-  if (SPIFFS.exists("config01.dat")) {
-    SPIFFS.remove("config01.dat");
+void network_message_callback(JsonObject &obj)
+{
+  String cmd = obj["cmd"];
+
+  if (cmd == "buzzer_beep") {
+    network_cmd_buzzer_beep(obj);
+  } else if (cmd == "buzzer_chirp") {
+    network_cmd_buzzer_chirp(obj);
+  } else if (cmd == "buzzer_click") {
+    network_cmd_buzzer_click(obj);
+  } else if (cmd == "file_data") {
+    network_cmd_file_data(obj);
+  } else if (cmd == "file_delete") {
+    network_cmd_file_delete(obj);
+  } else if (cmd == "file_dir_query") {
+    network_cmd_file_dir_query(obj);
+  } else if (cmd == "file_query") {
+    network_cmd_file_query(obj);
+  } else if (cmd == "file_rename") {
+    network_cmd_file_rename(obj);
+  } else if (cmd == "file_write") {
+    network_cmd_file_write(obj);
+  } else if (cmd == "firmware_data") {
+    network_cmd_firmware_data(obj);
+  } else if (cmd == "firmware_write") {
+    network_cmd_firmware_write(obj);
+  } else if (cmd == "keepalive") {
+    // ignore
+  } else if (cmd == "metrics_query") {
+    network_cmd_metrics_query(obj);
+  } else if (cmd == "motd") {
+    network_cmd_motd(obj);
+  } else if (cmd == "ping") {
+    network_cmd_ping(obj);
+  } else if (cmd == "pong") {
+    // ignore
+  } else if (cmd == "ready") {
+    // ignore
+  } else if (cmd == "reboot") {
+    network_cmd_reboot(obj);
+  } else if (cmd == "state_query") {
+    network_cmd_state_query(obj);
+  } else if (cmd == "system_query") {
+    network_cmd_system_query(obj);
+  } else if (cmd == "token_info") {
+    network_cmd_token_info(obj);
+  } else if (cmd == "tune") {
+    network_cmd_tune(obj);
+  } else {
+    DynamicJsonBuffer jb;
+    JsonObject &reply = jb.createObject();
+    reply["cmd"] = "error";
+    reply["requested_cmd"] = reply["cmd"];
+    reply["error"] = "not implemented";
+    net.send_json(reply);
   }
 }
 
@@ -478,76 +809,36 @@ void setup()
   Serial.print(" ");
   Serial.println(ESP.getSketchMD5());
 
-  // run the ADC calculations a few times to stabilise the low-pass filter
-  for (int i=0; i<10; i++) {
-    read_irms_current();
-    yield();
-  }
-
   Wire.begin(sda_pin, scl_pin);
   display.begin();
   SPIFFS.begin();
 
-  /*
-  if (digitalRead(button_a_pin) == LOW || digitalRead(button_b_pin) == LOW) {
-    i2c_scan();
-    display.message("Entering setup mode");
-    Serial.println("button A is down, going into setup mode");
-    SetupMode setup_mode(clientid, setup_password);
-    setup_mode.run();
-  }
-  */
-
   load_config();
 
-  wifisupervisor.begin(config);
-  net.begin(config);
-  netmsg.begin(config, net, clientid);
+  // run the ADC calculations a few times to stabilise the low-pass filter
+  for (int i=0; i<10; i++) {
+    power_reader.ReadRmsCurrent();
+    yield();
+  }
+
+  net.state_callback = network_state_callback;
+  net.message_callback = network_message_callback;
+  net.begin();
+
   ui.begin();
-  display.set_device(config.getConstChar("name"));
-  display.set_network(network_state_wifi, network_state_ip, network_state_session);
 
   nfc.token_present_callback = token_present;
   nfc.token_removed_callback = token_removed;
-  wifisupervisor.wifi_connected_callback = wifi_connected_callback;
-  wifisupervisor.wifi_disconnected_callback = wifi_disconnected_callback;
-  netmsg.token_info_callback = token_info_callback;
-  netmsg.state_callback = netmsg_state_callback;
-  net.state_callback = network_state_callback;
-  net.received_json_callback = received_json_callback;
-  netmsg.firmware_callback = firmware_callback;
-  netmsg.firmware_status_callback = firmware_status_callback;
-  netmsg.config_callback = config_callback;
-  netmsg.file_callback = file_callback;
-  netmsg.motd_callback = motd_callback;
-  netmsg.reboot_callback = reboot_callback;
   ui.button_callback = button_callback;
-
-  Dir dir = SPIFFS.openDir("");
-  while (dir.next()) {
-    Serial.print("FILE: ");
-    Serial.print(dir.fileName());
-    Serial.print(" ");
-    Serial.println(dir.fileSize());
-  }
-
-  //if (digitalRead(button_a_pin) == LOW && digitalRead(button_b_pin) == LOW) {
-  //  while (digitalRead(button_a_pin) == LOW && digitalRead(button_b_pin) == LOW) {
-  //    delay(1);
-  //  }
-  //  SetupMode setup_mode(clientid, setup_password);
-  //  setup_mode.run();
-  //}
-
 }
 
 void adc_loop()
 {
   static unsigned long last_read;
 
-  if (config.getInteger("adc_interval") == 0 ||
-      config.getInteger("adc_multiplier") == 0 ||
-      config.getInteger("active_threshold") == 0) {
+  if (config.adc_interval == 0 ||
+      config.adc_multiplier == 0 ||
+      config.active_threshold == 0) {
     if (device_active == true) {
       device_active = false;
       device_milliamps = 0;
@@ -555,16 +846,12 @@ void adc_loop()
     return;
   }
 
-  if (millis() - last_read > config.getInteger("adc_interval")) {
-    device_milliamps = read_irms_current() * 1000;
-    //char t[10];
-    //snprintf(t, sizeof(t), "%dmA", device_milliamps);
-    //Serial.println(t);
-    //display.message(t);
+  if (millis() - last_read > config.adc_interval) {
+    device_milliamps = power_reader.ReadRmsCurrent() * 1000;
     display.set_current(device_milliamps);
     last_read = millis();
 
-    if (device_milliamps > config.getInteger("active_threshold")) {
+    if (device_milliamps > config.active_threshold) {
       if (device_enabled && !device_active) {
         // only mark as active is it supposed to be enabled
         // otherwise, it's probably noise
@@ -586,61 +873,49 @@ void adc_loop()
   }
 }
 
-void send_file_list()
-{
-  StaticJsonBuffer<1000> jsonBuffer;
-  JsonObject& root = jsonBuffer.createObject();
-  JsonArray& files = root.createNestedArray("files");
-  root["cmd"] = "file_list_reply";
-  Dir dir = SPIFFS.openDir("");
-  while (dir.next()) {
-    JsonObject& file = files.createNestedObject();
-    MD5Builder md5;
-    File f = dir.openFile("r");
-    md5.begin();
-    md5.addStream(f, dir.fileSize());
-    md5.calculate();
-    file["name"] = dir.fileName();
-    file["size"] = dir.fileSize();
-    file["md5"] = md5.toString();
-  }
-  net.send_json(root);
-}
-
 void loop() {
   unsigned long loop_start_time;
   unsigned long loop_run_time;
-  static bool first_loop = true;
-  static unsigned long last_status_send;
+
+  unsigned long start_time;
+  long t_display, t_nfc, t_ui, t_adc;
 
   loop_start_time = millis();
 
-  wifisupervisor.loop();
-  yield();
-  net.loop();
-  yield();
-  if (config.getBoolean("dev")) {
-    display.set_attempts(net.myudp.get_attempts());
-  }
   if (device_enabled || device_active) {
     display.session_time = session_clock.read();
     display.active_time = active_clock.read();
   }
   display.draw_clocks();
+
   yield();
-  netmsg.loop();
-  yield();
+  
+  start_time = millis();
   nfc.loop();
+  t_nfc = millis() - start_time;
+  
   yield();
+  
+  start_time = millis();
   display.loop();
+  t_display = millis() - start_time;
+  
   yield();
+  
+  start_time = millis();
   ui.loop();
+  t_ui = millis() - start_time;
+  
   yield();
+  
+  start_time = millis();
   adc_loop();
+  t_adc = millis() - start_time;
+  
   yield();
 
-  if (device_enabled == true && device_active == false && config.getInteger("idle_timeout") != 0) {
-    if ((millis() - session_went_idle) > config.getInteger("idle_timeout")) {
+  if (device_enabled == true && device_active == false && config.idle_timeout != 0) {
+    if ((millis() - session_went_idle) > config.idle_timeout) {
       device_enabled = false;
       status_updated = true;
       display.set_state(device_enabled, device_active);
@@ -653,78 +928,20 @@ void loop() {
   }
 
   yield();
-
-  if (config.hasChanged() || first_loop) {
-    display.set_device(config.getConstChar("name"));
-    display.spinner_enabled = false; //config.dev;
-    display.current_enabled = config.getBoolean("dev");
-    first_loop = false;
-  }
-
-  if (config.hasChanged()) {
-    config.save();
-  }
-
-  yield();
-
-  //if (firmware_available && device_enabled == false && device_active == false) {
-  //  display.firmware_warning();
-  //  Serial.print("we have new firmware available at ");
-  //  Serial.println(firmware_url);
-  //  Serial.println("attempting update");
-  //  delay(1000);
-  //  t_httpUpdate_return ret = ESPhttpUpdate.update(firmware_url, firmware_fingerprint);
-  //  switch(ret) {
-  //    case HTTP_UPDATE_FAILED:
-  //      Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
-  //      break;
-  //    case HTTP_UPDATE_NO_UPDATES:
-  //      Serial.println("HTTP_UPDATE_NO_UPDATES");
-  //      break;
-  //    case HTTP_UPDATE_OK:
-  //      Serial.println("HTTP_UPDATE_OK");
-  //      break;
-  //  }
-  //  display.refresh();
-  //  firmware_available = false;
-  //}
-  //yield();
-
-  if (status_updated || last_status_send == 0 || millis() - last_status_send > config.getInteger("report_status_interval")) {
-    const char *state;
-    long active_time = 0;
-    long idle_time = 0;
-    if (device_enabled) {
-      if (device_active) {
-        state = "active";
-        active_time = millis() - session_went_active;
-      } else {
-        state = "idle";
-        idle_time = millis() - session_went_idle;
-      }
-    } else {
-      if (device_active) {
-        state = "wait";
-        active_time = millis() - session_went_active;
-      } else {
-        state = "standby";
-        strcpy(user_name, "");
-      }
-    }
-    //netmsg.send_status(state, user_name, device_milliamps, active_time, idle_time);
-    netmsg.send_status(state, user_name, device_milliamps, active_time, idle_time,
-                       net.send_failip_count, net.send_failbegin_count, net.send_failwrite_count, net.send_failend_count,
-                       net.get_retry_count());
-    last_status_send = millis();
-    status_updated = false;
+  
+  if (status_updated) {
+    send_state();
   }
 
   yield();
 
   loop_run_time = millis() - loop_start_time;
   if (loop_run_time > 56) {
-    Serial.print("loop time ");
-    Serial.println(loop_run_time, DEC);
+    Serial.print("loop time "); Serial.print(loop_run_time, DEC); Serial.print("ms: ");
+    Serial.print("nfc="); Serial.print(t_nfc, DEC); Serial.print("ms ");
+    Serial.print("display="); Serial.print(t_display, DEC); Serial.print("ms ");
+    Serial.print("ui="); Serial.print(t_ui, DEC); Serial.print("ms ");
+    Serial.print("adc="); Serial.print(t_adc, DEC); Serial.println("ms");
   }
 
   yield();

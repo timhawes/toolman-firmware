@@ -8,6 +8,7 @@ UI::UI(int flash_pin, int a_pin, int b_pin)
   button_flash->attach(flash_pin);
   button_a->attach(a_pin);
   button_b->attach(b_pin);
+  swap_buttons(false);
 }
 
 void UI::begin()
@@ -29,16 +30,27 @@ void UI::loop()
       button_callback(0, true);
     }
     if (button_a->rose()) {
-      button_callback(1, false);
+      button_callback(id_a, false);
     }
     if (button_a->fell()) {
-      button_callback(1, true);
+      button_callback(id_a, true);
     }
     if (button_b->rose()) {
-      button_callback(2, false);
+      button_callback(id_b, false);
     }
     if (button_b->fell()) {
-      button_callback(2, true);
+      button_callback(id_b, true);
     }
+  }
+}
+
+void UI::swap_buttons(bool swap)
+{
+  if (swap) {
+    id_a = 2;
+    id_b = 1;
+  } else {
+    id_a = 1;
+    id_b = 2;
   }
 }

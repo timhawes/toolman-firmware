@@ -22,6 +22,7 @@ private:
   unsigned long flashing_last_change = 0;
   long flashing_interval = 750;
   unsigned int attempts = 0;
+  bool restarting = false;
 public:
   Display(LiquidCrystal_I2C &lcd);
   void begin();
@@ -29,7 +30,7 @@ public:
   void set_device(const char *name);
   void set_user(const char *name);
   void set_state(bool enabled, bool active);
-  void set_current(unsigned long milliamps);
+  void set_current(unsigned int milliamps);
   void set_motd(const char *motd);
   void set_attempts(unsigned int attempts);
   void message(const char *text, unsigned long timeout=0);

@@ -11,10 +11,13 @@ private:
   Bounce *button_flash;
   Bounce *button_a;
   Bounce *button_b;
+  int id_a;
+  int id_b;
 public:
   UI(int flash_pin, int a_pin, int b_pin);
   void begin();
   void loop();
+  void swap_buttons(bool swap);
   button_callback_t button_callback;
 };
 
