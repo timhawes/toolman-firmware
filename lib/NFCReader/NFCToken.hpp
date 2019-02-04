@@ -8,6 +8,10 @@
 #define MAX_UID_LENGTH 7
 #define MAX_ATS_LENGTH 32
 
+const uint8_t nfc_version_ntag213[] = {0x00, 0x04, 0x04, 0x02, 0x01, 0x00, 0x0F, 0x03};
+const uint8_t nfc_version_ntag215[] = {0x00, 0x04, 0x04, 0x02, 0x01, 0x00, 0x11, 0x03};
+const uint8_t nfc_version_ntag216[] = {0x00, 0x04, 0x04, 0x02, 0x01, 0x00, 0x13, 0x03};
+
 class NFCToken {
 private:
   bool is_seen = false;
@@ -26,6 +30,10 @@ public:
   uint8_t uid_len = 0;
   uint8_t version[16];
   uint8_t version_len = 0;
+  uint8_t max_block = 0;
+  uint8_t data[1024];
+  uint16_t data_len = 0;
+  unsigned int read_time = 0;
   void clear();
   void copyFrom(NFCToken source);
   void dump();
@@ -38,6 +46,7 @@ public:
   void setNtagSignature(uint8_t *sig, uint8_t siglen);
   void setUid(uint8_t *uid, uint8_t uidlen);
   void setVersion(uint8_t *version, uint8_t versionlen);
+  void setData(int position, uint8_t *data, uint8_t datalen);
   String uidString();
 };
 

@@ -106,10 +106,13 @@ void NFC::loop()
   packet_buffer[2] = PN532_MIFARE_ISO14443A;
   _pn532i2c->writeCommand(packet_buffer, 3);
   uint16_t response_len = _pn532i2c->readResponse(packet_buffer, sizeof(packet_buffer), 50);
+
   if (response_len > 0) {
     if (packet_buffer[0] > 0) {
+
+      unsigned long read_start = millis();
+
       current.clear();
-      //uint8_t target = packet_buffer[1];
       current.atqa = (packet_buffer[2] << 8) | packet_buffer[3]; // sens_res
       current.sak = packet_buffer[4]; // sel_res
       uint8_t packet_uid_len = packet_buffer[5];
@@ -117,6 +120,7 @@ void NFC::loop()
       if (response_len > 6 + packet_uid_len) {
         current.setAts(&packet_buffer[6+packet_uid_len], packet_buffer[6+packet_uid_len]);
       }
+
       if (last_token1.matchesUid(&packet_buffer[6], packet_uid_len)) {
         last_token1.setSeen();
       } else if (last_token2.matchesUid(&packet_buffer[6], packet_uid_len)) {
@@ -126,6 +130,8 @@ void NFC::loop()
           Serial.print("NFCReader: PN532_COMMAND_INLISTPASSIVETARGET -> ");
           serialHexdump(packet_buffer, response_len);
         }
+
+        // read version data
         if (current.isIso14443dash4() || current.isNtag21x()) {
           uint8_t packet2[64];
           packet2[0] = PN532_COMMAND_INCOMMUNICATETHRU;
@@ -136,34 +142,64 @@ void NFC::loop()
             current.setVersion(&packet2[1], packet2len-1);
           }
         }
+
+        // NTAG21x-specific data
         if (current.isNtag21x()) {
           uint8_t packet2[64];
-          packet2[0] = PN532_COMMAND_INCOMMUNICATETHRU;
-          packet2[1] = 0x3C;
-          packet2[2] = 0x00;
-          _pn532i2c->writeCommand(packet2, 3);
-          uint16_t packet2len = _pn532i2c->readResponse(packet2, sizeof(packet2), 50);
-          if (packet2len == 33) {
-            current.setNtagSignature(&packet2[1], 32);
-          }
-          packet2[0] = PN532_COMMAND_INCOMMUNICATETHRU;
-          packet2[1] = 0x39;
-          packet2[2] = 0x02;
-          _pn532i2c->writeCommand(packet2, 3);
-          packet2len = _pn532i2c->readResponse(packet2, sizeof(packet2), 50);
-          if (packet2len == 4) {
-            current.ntag_counter = (packet2[3] << 16) | (packet2[2] << 8) | packet2[1];
-            // now perform a read to increment the counter
+          uint16_t packet2len;
+          
+          // read signature
+          if (read_sig) {
             packet2[0] = PN532_COMMAND_INCOMMUNICATETHRU;
-            packet2[1] = 0x30;
+            packet2[1] = 0x3C;
             packet2[2] = 0x00;
             _pn532i2c->writeCommand(packet2, 3);
             packet2len = _pn532i2c->readResponse(packet2, sizeof(packet2), 50);
+            if (packet2len == 33) {
+              current.setNtagSignature(&packet2[1], 32);
+            }
+          }
+
+          // read blocks
+          if (read_data > 0) {
+            int max_block = current.max_block;
+            if (max_block > read_data) {
+              // limit data read according to setting
+              max_block = read_data;
+            }
+            for (int block=0; block<max_block; block+=12) {
+              packet2[0] = PN532_COMMAND_INCOMMUNICATETHRU;
+              packet2[1] = 0x3A;
+              packet2[2] = block;
+              packet2[3] = block+12;
+              if (packet2[3] > max_block) {
+                packet2[3] = max_block;
+              }
+              _pn532i2c->writeCommand(packet2, 4);
+              packet2len = _pn532i2c->readResponse(packet2, sizeof(packet2), 64);
+              current.setData(block*4, &packet2[1], packet2len-1);
+            }
+          }
+
+          // read counter
+          if (read_counter) {
+            packet2[0] = PN532_COMMAND_INCOMMUNICATETHRU;
+            packet2[1] = 0x39;
+            packet2[2] = 0x02;
+            _pn532i2c->writeCommand(packet2, 3);
+            packet2len = _pn532i2c->readResponse(packet2, sizeof(packet2), 50);
+            if (packet2len == 4) {
+              current.ntag_counter = (packet2[3] << 16) | (packet2[2] << 8) | packet2[1];
+            }
           }
         }
+
+        current.read_time = millis() - read_start;
+
         if (debug) {
           current.dump();
         }
+
         if (last_token1.lastSeen() == -1) {
           last_token1.copyFrom(current);
           last_token1.setSeen();
@@ -171,6 +207,7 @@ void NFC::loop()
           last_token2.copyFrom(current);
           last_token2.setSeen();
         }
+
         if (token_present_callback) {
           token_present_callback(current);
         }
@@ -187,6 +224,7 @@ void NFC::loop()
     }
     last_token1.clear();
   }
+
   if (last_token1.uid_len > 0 && last_token2.lastSeen() > token_present_timeout) {
     if (debug) {
       Serial.println("NFCReader: token #2 removed");

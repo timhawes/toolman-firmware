@@ -33,6 +33,10 @@ void NFCToken::clear()
   memset(&ntag_signature, 0, sizeof(ntag_signature));
   last_seen = 0;
   is_seen = false;
+  max_block = 0;
+  memset(&data, 0, sizeof(data));
+  data_len = 0;
+  read_time = 0;
 }
 
 void NFCToken::copyFrom(NFCToken source)
@@ -79,6 +83,14 @@ void NFCToken::setVersion(uint8_t *_version, uint8_t _version_len)
     version_len = sizeof(version);
   }
   memcpy(&version, _version, version_len);
+
+  if (memcmp(version, nfc_version_ntag213, 8) == 0) {
+    max_block = 0x2C;
+  } else if (memcmp(version, nfc_version_ntag215, 8) == 0) {
+    max_block = 0x86;
+  } else if (memcmp(version, nfc_version_ntag216, 8) == 0) {
+    max_block = 0xE6;
+  }
 }
 
 void NFCToken::setNtagSignature(uint8_t *sig, uint8_t siglen)
@@ -118,7 +130,9 @@ void NFCToken::dump()
   Serial.print("  ats: "); Serial.println(hexlify(ats, ats_len));
   Serial.print("  version: "); Serial.println(hexlify(version, version_len));
   Serial.print("  ntag_counter: "); Serial.println(ntag_counter, DEC);
-  Serial.print("  ntag_signature: "); Serial.println(hexlify(ntag_signature, ntag_signature_len));  
+  Serial.print("  ntag_signature: "); Serial.println(hexlify(ntag_signature, ntag_signature_len));
+  Serial.print("  data: "); Serial.println(hexlify(data, data_len));
+  Serial.print("  read_time: "); Serial.println(read_time, DEC);
 }
 
 bool NFCToken::matchesUid(uint8_t *new_uid, uint8_t new_uid_len)
@@ -153,4 +167,15 @@ bool NFCToken::isNtag21x()
 String NFCToken::uidString()
 {
   return hexlify(uid, (int)uid_len);
+}
+
+void NFCToken::setData(int position, uint8_t *_data, uint8_t _datalen)
+{
+  if (position < 0 || position >= sizeof(data) || position + _datalen >= sizeof(data)) {
+    return;
+  }
+  memcpy(&data[position], _data, _datalen);
+  if (position + _datalen > data_len) {
+    data_len = position + _datalen;
+  }
 }

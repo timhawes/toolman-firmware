@@ -26,6 +26,9 @@ public:
   NFC(PN532_I2C &pn532i2c, PN532 &pn532, uint8_t reset_pin);
   nfctoken_callback_t token_present_callback = NULL;
   nfctoken_callback_t token_removed_callback = NULL;
+  bool read_counter = false;
+  bool read_sig = false;
+  int read_data = 0;
   void begin();
   void loop();
   bool debug = false;
