@@ -10,9 +10,9 @@ AppConfig::AppConfig() {
 
 void AppConfig::LoadDefaults() {
   strlcpy(name, "Unconfigured", sizeof(name));
-  strlcpy(server_host, "ss-tool-controller.hacklab", sizeof(server_host));
-  strlcpy(server_password, "password", sizeof(server_password));
-  strlcpy(ssid, "Hacklab", sizeof(ssid));
+  strlcpy(server_host, "", sizeof(server_host));
+  strlcpy(server_password, "", sizeof(server_password));
+  strlcpy(ssid, "", sizeof(ssid));
   strlcpy(wpa_password, "", sizeof(wpa_password));
   active_threshold = 500;
   adc_interval = 1000;
