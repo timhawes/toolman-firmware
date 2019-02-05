@@ -37,6 +37,7 @@ bool AppConfig::LoadJson(const char *filename) {
   File file = SPIFFS.open(filename, "r");
   if (!file) {
     Serial.println("AppConfig: file not found");
+    LoadOverrides();
     return false;
   }
 
@@ -46,6 +47,7 @@ bool AppConfig::LoadJson(const char *filename) {
 
   if (!root.success()) {
     Serial.println("AppConfig: failed to parse JSON");
+    LoadOverrides();
     return false;
   }
 
