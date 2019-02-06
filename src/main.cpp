@@ -401,6 +401,23 @@ void network_cmd_buzzer_click(JsonObject &obj)
   buzzer.click();
 }
 
+void network_cmd_buzzer_tune(JsonObject &obj)
+{
+  const char *b64 = obj.get<const char*>("data");
+  unsigned int binary_length = decode_base64_length((unsigned char*)b64);
+  uint8_t binary[binary_length];
+  binary_length = decode_base64((unsigned char*)b64, binary);
+
+  memset(network_tune, 0, sizeof(network_tune));
+  if (binary_length > sizeof(network_tune)) {
+    memcpy(network_tune, binary, sizeof(network_tune));
+  } else {
+    memcpy(network_tune, binary, binary_length);
+  }
+
+  buzzer.play(network_tune);
+}
+
 void network_cmd_display_backlight(JsonObject &obj)
 {
   if (obj["backlight"] == "on") {
@@ -743,23 +760,6 @@ void network_cmd_token_info(JsonObject &obj)
   token_info_callback(obj["uid"], obj["found"], obj["name"], obj["access"]);
 }
 
-void network_cmd_tune(JsonObject &obj)
-{
-  const char *b64 = obj.get<const char*>("data");
-  unsigned int binary_length = decode_base64_length((unsigned char*)b64);
-  uint8_t binary[binary_length];
-  binary_length = decode_base64((unsigned char*)b64, binary);
-
-  memset(network_tune, 0, sizeof(network_tune));
-  if (binary_length > sizeof(network_tune)) {
-    memcpy(network_tune, binary, sizeof(network_tune));
-  } else {
-    memcpy(network_tune, binary, binary_length);
-  }
-
-  buzzer.play(network_tune);
-}
-
 void network_message_callback(JsonObject &obj)
 {
   String cmd = obj["cmd"];
@@ -770,6 +770,8 @@ void network_message_callback(JsonObject &obj)
     network_cmd_buzzer_chirp(obj);
   } else if (cmd == "buzzer_click") {
     network_cmd_buzzer_click(obj);
+  } else if (cmd == "buzzer_tune") {
+    network_cmd_buzzer_tune(obj);
   } else if (cmd == "display_backlight") {
     network_cmd_display_backlight(obj);
   } else if (cmd == "display_message") {
@@ -814,8 +816,6 @@ void network_message_callback(JsonObject &obj)
     network_cmd_system_query(obj);
   } else if (cmd == "token_info") {
     network_cmd_token_info(obj);
-  } else if (cmd == "tune") {
-    network_cmd_tune(obj);
   } else {
     DynamicJsonBuffer jb;
     JsonObject &reply = jb.createObject();
