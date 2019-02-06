@@ -676,6 +676,15 @@ void network_cmd_state_query(JsonObject &obj)
   send_state();
 }
 
+void network_cmd_stop(JsonObject &obj)
+{
+  if (device_enabled == true) {
+    device_enabled = false;
+    status_updated = true;
+    display.set_state(device_enabled, device_active);
+  }
+}
+
 void network_cmd_system_query(JsonObject &obj)
 {
   DynamicJsonBuffer jb;
@@ -768,6 +777,8 @@ void network_message_callback(JsonObject &obj)
     network_cmd_reboot(obj);
   } else if (cmd == "state_query") {
     network_cmd_state_query(obj);
+  } else if (cmd == "stop") {
+    network_cmd_stop(obj);
   } else if (cmd == "system_query") {
     network_cmd_system_query(obj);
   } else if (cmd == "token_info") {
