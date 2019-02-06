@@ -13,7 +13,7 @@ static const char html[] PROGMEM =
     "<tr><th>Server TLS</th><td><input type='checkbox' name='server_tls_enabled' /></td></tr>\n"
     "<tr><th>Server Password</th><td><input type='text' name='server_password' /></td></tr>\n"
     "</table>\n"
-    "<input type='submit' value='Save' />"
+    "<input type='submit' value='Save and Restart' />"
     "</form>\n";
 
 SetupMode::SetupMode(const char *clientid, const char *setup_password) {
@@ -42,6 +42,8 @@ void SetupMode::configUpdateHandler() {
   file.close();
   server.sendHeader("Location", "/");
   server.send(301);
+  delay(500);
+  ESP.restart();
 }
 
 void SetupMode::run() {
