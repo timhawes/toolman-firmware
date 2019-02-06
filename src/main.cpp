@@ -855,7 +855,17 @@ void setup()
   display.begin();
   SPIFFS.begin();
 
-  load_config();
+  if (SPIFFS.exists("config.json")) {
+    load_config();
+  } else {
+    Serial.println("config.json is missing, entering setup mode");
+    display.setup_mode(clientid);
+    net.stop();
+    delay(1000);
+    SetupMode setup_mode(clientid, setup_password);
+    setup_mode.run();
+    ESP.restart();
+  }
 
   // run the ADC calculations a few times to stabilise the low-pass filter
   for (int i=0; i<10; i++) {
