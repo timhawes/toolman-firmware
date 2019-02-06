@@ -401,6 +401,31 @@ void network_cmd_buzzer_click(JsonObject &obj)
   buzzer.click();
 }
 
+void network_cmd_display_backlight(JsonObject &obj)
+{
+  if (obj["backlight"] == "on") {
+    display.backlight_on();
+  } else if (obj["backlight"] == "off") {
+    display.backlight_off();
+  } else if (obj["backlight"] == "flashing") {
+    display.backlight_flashing();
+  }
+}
+
+void network_cmd_display_message(JsonObject &obj)
+{
+  if (obj["timeout"] > 0) {
+    display.message(obj["text"], obj["timeout"]);
+  } else {
+    display.message(obj["text"]);
+  }
+}
+
+void network_cmd_display_refresh(JsonObject &obj)
+{
+  display.refresh();
+}
+
 void network_cmd_file_data(JsonObject &obj)
 {
   const char *b64 = obj.get<const char*>("data");
@@ -745,6 +770,12 @@ void network_message_callback(JsonObject &obj)
     network_cmd_buzzer_chirp(obj);
   } else if (cmd == "buzzer_click") {
     network_cmd_buzzer_click(obj);
+  } else if (cmd == "display_backlight") {
+    network_cmd_display_backlight(obj);
+  } else if (cmd == "display_message") {
+    network_cmd_display_message(obj);
+  } else if (cmd == "display_refresh") {
+    network_cmd_display_refresh(obj);
   } else if (cmd == "file_data") {
     network_cmd_file_data(obj);
   } else if (cmd == "file_delete") {
