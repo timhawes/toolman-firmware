@@ -840,6 +840,7 @@ void setup()
   digitalWrite(relay_pin, LOW);
 
   snprintf(clientid, sizeof(clientid), "ss-%06x", ESP.getChipId());
+  WiFi.hostname(String(clientid));
 
   Serial.begin(115200);
   for (int i=0; i<1024; i++) {
