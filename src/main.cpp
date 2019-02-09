@@ -176,25 +176,29 @@ void token_present(NFCToken token)
   
   DynamicJsonBuffer jb;
   JsonObject &obj = jb.createObject();
+  JsonObject &tokenobj = jb.createObject();
+
   obj["cmd"] = "token_auth";
-  obj["uid"] = token.uidString();
   if (token.ats_len > 0) {
-    obj["ats"] = hexlify(token.ats, token.ats_len);
+    tokenobj["ats"] = hexlify(token.ats, token.ats_len);
   }
-  obj["atqa"] = (int)token.atqa;
-  obj["sak"] = (int)token.sak;
+  tokenobj["atqa"] = (int)token.atqa;
+  tokenobj["sak"] = (int)token.sak;
   if (token.version_len > 0) {
-    obj["version"] = hexlify(token.version, token.version_len);
+    tokenobj["version"] = hexlify(token.version, token.version_len);
   }
   if (token.ntag_counter > 0) {
-    obj["ntag_counter"] = (long)token.ntag_counter;
+    tokenobj["ntag_counter"] = (long)token.ntag_counter;
   }
   if (token.ntag_signature_len > 0) {
-    obj["ntag_signature"] = hexlify(token.ntag_signature, token.ntag_signature_len);
+    tokenobj["ntag_signature"] = hexlify(token.ntag_signature, token.ntag_signature_len);
   }
   if (token.data_len > 0) {
-    obj["data"] = hexlify(token.data, token.data_len);
+    tokenobj["data"] = hexlify(token.data, token.data_len);
   }
+  tokenobj["uid"] = token.uidString();
+  obj["uid"] = token.uidString();
+  obj["token"] = tokenobj;
   if (token.read_time > 0) {
     obj["read_time"] = token.read_time;
   }
