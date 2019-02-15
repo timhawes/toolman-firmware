@@ -48,6 +48,7 @@ char last_user[20];
 uint8_t user_access = 0;
 char pending_token[15];
 unsigned long pending_token_time = 0;
+unsigned long last_network_activity = 0;
 
 bool firmware_restart_pending = false;
 bool reset_pending = false;
@@ -764,6 +765,8 @@ void network_message_callback(JsonObject &obj)
 {
   String cmd = obj["cmd"];
 
+  last_network_activity = millis();
+
   if (cmd == "buzzer_beep") {
     network_cmd_buzzer_beep(obj);
   } else if (cmd == "buzzer_chirp") {
@@ -1014,7 +1017,20 @@ void loop() {
     }
   }
 
-  yield();
+  if (config.network_watchdog_time != 0) {
+    if (millis() - last_network_activity > config.network_watchdog_time) {
+      if (device_enabled == false && device_relay == false && device_active == false) {
+        Serial.println("restarting due to network watchdog...");
+        net.stop();
+        display.firmware_warning();
+        delay(1000);
+        Serial.println("restarting now!");
+        ESP.restart();
+        delay(5000);
+        display.refresh();
+      }
+    }
+  }
 
   if (reset_pending || restart_pending) {
     if (device_enabled == false && device_relay == false && device_active == false) {
