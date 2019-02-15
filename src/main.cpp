@@ -50,7 +50,8 @@ char pending_token[15];
 unsigned long pending_token_time = 0;
 
 bool firmware_restart_pending = false;
-bool reboot_pending = false;
+bool reset_pending = false;
+bool restart_pending = false;
 bool device_enabled = false; // the relay should be switched on
 bool device_relay = false; // the relay *is* switched on
 bool device_active = false; // the current sensor is registering a load
@@ -692,12 +693,23 @@ void network_cmd_ping(JsonObject &obj)
   net.send_json(reply);
 }
 
-void network_cmd_reboot(JsonObject &obj)
+void network_cmd_reset(JsonObject &obj)
 {
-  reboot_pending = true;
+  reset_pending = true;
+  if (obj["force"]) {
+    display.restart_warning();
+    ESP.reset();
+    delay(5000);
+  }
+}
+
+void network_cmd_restart(JsonObject &obj)
+{
+  restart_pending = true;
   if (obj["force"]) {
     display.restart_warning();
     ESP.restart();
+    delay(5000);
   }
 }
 
@@ -794,8 +806,10 @@ void network_message_callback(JsonObject &obj)
     // ignore
   } else if (cmd == "ready") {
     // ignore
-  } else if (cmd == "reboot") {
-    network_cmd_reboot(obj);
+  } else if (cmd == "reset") {
+    network_cmd_reset(obj);
+  } else if (cmd == "restart") {
+    network_cmd_restart(obj);
   } else if (cmd == "state_query") {
     network_cmd_state_query(obj);
   } else if (cmd == "stop") {
@@ -1002,14 +1016,20 @@ void loop() {
 
   yield();
 
-  if (reboot_pending) {
+  if (reset_pending || restart_pending) {
     if (device_enabled == false && device_relay == false && device_active == false) {
       Serial.println("rebooting at remote request...");
       net.stop();
       display.restart_warning();
       delay(1000);
-      Serial.println("restarting now!");
-      ESP.restart();
+      if (reset_pending) {
+        Serial.println("resetting now!");
+        ESP.reset();
+      }
+      if (restart_pending) {
+        Serial.println("restarting now!");
+        ESP.restart();
+      }
       delay(5000);
       display.refresh();
     }
