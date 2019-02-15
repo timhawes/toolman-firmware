@@ -142,6 +142,7 @@ void Network::connectToTcp() {
         }
         rx_buffer->flush();
         tx_buffer->flush();
+        Serial.println("network: TCP connected");
         if (state_callback) {
           state_callback(true, true, false);
         }
@@ -249,6 +250,7 @@ void Network::receive_json(JsonObject &obj) {
 
   if (obj["cmd"] == "ready") {
     if (state_callback) {
+      Serial.println("network: ready");
       state_callback(true, true, true);
     }
   }
