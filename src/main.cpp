@@ -308,22 +308,6 @@ void button_callback(uint8_t button, bool state)
   }
 }
 
-/*
-void firmware_url_callback(const char *url, const char *fingerprint, const char *md5)
-{
-  String current_md5 = ESP.getSketchMD5();
-  if (strncmp(current_md5.c_str(), md5, 32) == 0) {
-    Serial.println("firmware is up to date");
-  } else {
-    Serial.println("new firmware is available");
-    strncpy(firmware_url, url, sizeof(firmware_url));
-    strncpy(firmware_fingerprint, fingerprint, sizeof(firmware_fingerprint));
-    strncpy(firmware_md5, md5, sizeof(firmware_md5));
-    firmware_available = true;
-  }
-}
-*/
-
 void firmware_status_callback(bool active, bool restart, unsigned int progress)
 {
   static unsigned int previous_progress = 0;
