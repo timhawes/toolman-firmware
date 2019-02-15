@@ -23,6 +23,7 @@ void AppConfig::LoadDefaults() {
   nfc_read_counter = false;
   nfc_read_data = 0;
   nfc_read_sig = false;
+  reboot_enabled = false;
   server_port = 13260;
   server_tls_enabled = false;
   server_tls_verify = false;
@@ -67,6 +68,7 @@ bool AppConfig::LoadJson(const char *filename) {
   nfc_read_counter = root["nfc_read_counter"];
   nfc_read_data = root["nfc_read_data"];
   nfc_read_sig = root["nfc_read_sig"];
+  reboot_enabled = root["reboot_enabled"];
   server_port = root["server_port"];
   server_tls_enabled = root["server_tls_enabled"];
   server_tls_verify = root["server_tls_verify"];

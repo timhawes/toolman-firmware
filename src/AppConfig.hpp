@@ -12,6 +12,7 @@ class AppConfig {
   bool server_tls_enabled;
   bool server_tls_verify;
   bool swap_buttons;
+  bool reboot_enabled;
   char name[21];
   char server_host[64];
   char server_password[64];

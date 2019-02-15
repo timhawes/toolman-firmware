@@ -304,9 +304,10 @@ void button_callback(uint8_t button, bool state)
     }
   }
 
-  if (button_a && button_b && config.dev) {
+  if (button_a && button_b && (config.dev || config.reboot_enabled)) {
     display.restart_warning();
     ESP.restart();
+    delay(5000);
   }
 }
 
