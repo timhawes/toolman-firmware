@@ -229,6 +229,7 @@ void load_config()
   nfc.read_data = config.nfc_read_data;
   nfc.read_sig = config.nfc_read_sig;
   display.current_enabled = config.dev;
+  display.freeheap_enabled = config.dev;
   display.set_device(config.name);
   ui.swap_buttons(config.swap_buttons);
   power_reader.SetInterval(config.adc_interval);

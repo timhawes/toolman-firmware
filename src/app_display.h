@@ -50,6 +50,7 @@ public:
   bool spinner_enabled = false;
   bool current_enabled = false;
   bool attempts_enabled = false;
+  bool freeheap_enabled = false;
   unsigned long active_time;
   unsigned long session_time;
   void draw_clocks();

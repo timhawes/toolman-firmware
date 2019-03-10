@@ -23,12 +23,22 @@ void Display::begin()
 
 void Display::loop()
 {
+  static unsigned long last_freeheap;
   static unsigned long last_spin;
   static uint8_t spinner_position;
   //const char spinner[] = {124, 47, 45, 2};
   //unsigned int spinner_length = 4;
   const char spinner[] = "0123456789";
   unsigned int spinner_length = 10;
+
+  if (freeheap_enabled) {
+    if (millis() - last_freeheap > 500) {
+      char t[6];
+      snprintf(t, sizeof(t), "%05d", ESP.getFreeHeap());
+      draw_right(8, 5, t, 5);
+      last_freeheap = millis();
+    }
+  }
 
   if (spinner_enabled) {
     if (millis() - last_spin > 100) {
