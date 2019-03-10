@@ -51,7 +51,7 @@ void Network::onWifiConnect() {
     state_callback(true, false, false);
   }
 
-  tcpReconnectTimer.once_ms(1, std::bind(&Network::connectToTcp, this));
+  tcpReconnectTimer.once_ms_scheduled(1, std::bind(&Network::connectToTcp, this));
 }
 
 void Network::onWifiDisconnect() {
@@ -106,7 +106,7 @@ void Network::connectToTcp() {
         Serial.print(error, DEC);
         Serial.print(": ");
         Serial.println(c->errorToString(error));
-        tcpReconnectTimer.once(2, std::bind(&Network::connectToTcp, this));
+        tcpReconnectTimer.once_scheduled(2, std::bind(&Network::connectToTcp, this));
       },
       NULL);
 
@@ -158,7 +158,7 @@ void Network::connectToTcp() {
         if (state_callback) {
           state_callback(true, false, false);
         }
-        tcpReconnectTimer.once(2, std::bind(&Network::connectToTcp, this));
+        tcpReconnectTimer.once_scheduled(2, std::bind(&Network::connectToTcp, this));
       },
       NULL);
 
@@ -198,7 +198,7 @@ void Network::connectToTcp() {
   if (!client->connect(server_host, server_port, server_tls_enabled)) {
     Serial.println("network: TCP client connect failed immediately");
     client->close(true);
-    tcpReconnectTimer.once(2, std::bind(&Network::connectToTcp, this));
+    tcpReconnectTimer.once_scheduled(2, std::bind(&Network::connectToTcp, this));
   }
 }
 
