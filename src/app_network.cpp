@@ -249,8 +249,8 @@ void Network::receive_json(JsonObject &obj) {
   }
 
   if (obj["cmd"] == "ready") {
+    Serial.println("network: ready");
     if (state_callback) {
-      Serial.println("network: ready");
       state_callback(true, true, true);
     }
   }
