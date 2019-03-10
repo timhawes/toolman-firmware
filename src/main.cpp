@@ -76,6 +76,11 @@ PowerReader power_reader;
 buzzer_note network_tune[50];
 buzzer_note ascending[] = { {1000, 250}, {1500, 250}, {2000, 250}, {0, 0} };
 
+bool system_is_idle()
+{
+  return device_enabled == false && device_relay == false && device_active == false;
+}
+
 void send_state()
 {
   const char *state = "";
@@ -1007,7 +1012,7 @@ void loop() {
   yield();
 
   if (firmware_restart_pending) {
-    if (device_enabled == false && device_relay == false && device_active == false) {
+    if (system_is_idle()) {
       Serial.println("restarting to complete firmware install...");
       net.stop();
       display.firmware_warning();
@@ -1021,7 +1026,7 @@ void loop() {
 
   if (config.network_watchdog_time != 0) {
     if (millis() - last_network_activity > config.network_watchdog_time) {
-      if (device_enabled == false && device_relay == false && device_active == false) {
+      if (system_is_idle()) {
         Serial.println("restarting due to network watchdog...");
         net.stop();
         display.firmware_warning();
@@ -1035,7 +1040,7 @@ void loop() {
   }
 
   if (reset_pending || restart_pending) {
-    if (device_enabled == false && device_relay == false && device_active == false) {
+    if (system_is_idle()) {
       Serial.println("rebooting at remote request...");
       net.stop();
       display.restart_warning();
