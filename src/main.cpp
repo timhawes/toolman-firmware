@@ -673,6 +673,7 @@ void network_cmd_metrics_query(JsonObject &obj)
   JsonObject &reply = jb.createObject();
   reply["cmd"] = "metrics_info";
   reply["esp_free_heap"] = ESP.getFreeHeap();
+  reply["millis"] = millis();
   reply["net_rx_buf_max"] = net.rx_buffer_high_watermark;
   reply["net_tcp_reconns"] = net.client_reconnections;
   reply["net_tx_buf_max"] = net.tx_buffer_high_watermark;
