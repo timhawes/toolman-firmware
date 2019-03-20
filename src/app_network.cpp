@@ -334,3 +334,16 @@ size_t Network::process_rx_buffer() {
 
   return processed_bytes;
 }
+
+void Network::reconnect(int type) {
+  if (type == 1) {
+    client->close(false);
+  } else if (type == 2) {
+    client->close(true);
+  } else if (type == 3) {
+    client->close(true);
+    WiFi.disconnect();
+  } else {
+    client->close(false);
+  }
+}

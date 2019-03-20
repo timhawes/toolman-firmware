@@ -61,6 +61,7 @@ class Network {
                   const uint8_t *fingerprint2 = NULL);
   void set_wifi(const char *ssid, const char *password);
   void stop();
+  void reconnect(int type);
 };
 
 #endif
