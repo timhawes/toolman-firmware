@@ -343,6 +343,14 @@ void Network::reconnect(int type) {
   } else if (type == 3) {
     client->close(true);
     WiFi.disconnect();
+  } else if (type == 4) {
+    client->close(true);
+    delete client;
+    delete rx_buffer;
+    delete tx_buffer;
+    client = new AsyncClient();
+    rx_buffer = new cbuf(1460);
+    tx_buffer = new cbuf(1460);
   } else {
     client->close(false);
   }
