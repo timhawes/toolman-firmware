@@ -222,7 +222,7 @@ void Network::receive_packet(const uint8_t *packet, int len) {
   receive_json(obj);
 }
 
-void Network::send_packet(const uint8_t *data, int len) {
+void Network::send_packet(const uint8_t *data, int len, bool now) {
   char header[3];
 
   if (debug_packet) {
@@ -238,7 +238,10 @@ void Network::send_packet(const uint8_t *data, int len) {
   for (int i = 0; i < len; i++) {
     tx_buffer->write(data[i]);
   }
-  process_tx_buffer();
+
+  if (now) {
+    process_tx_buffer();
+  }
 }
 
 void Network::receive_json(JsonObject &obj) {
@@ -260,7 +263,7 @@ void Network::receive_json(JsonObject &obj) {
   }
 }
 
-void Network::send_json(JsonObject &obj) {
+void Network::send_json(JsonObject &obj, bool now) {
   String json;
   obj.printTo(json);
 
@@ -270,7 +273,7 @@ void Network::send_json(JsonObject &obj) {
     Serial.println();
   }
 
-  send_packet((const uint8_t *)json.c_str(), json.length());
+  send_packet((const uint8_t *)json.c_str(), json.length(), now);
 }
 
 void Network::send_cmd_hello() {

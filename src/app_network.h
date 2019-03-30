@@ -42,7 +42,7 @@ class Network {
   void receive_json(JsonObject &obj);
   void receive_packet(const uint8_t *data, int len);
   void send_cmd_hello();
-  void send_packet(const uint8_t *data, int len);
+  void send_packet(const uint8_t *data, int len, bool now = false);
 
  public:
   Network();
@@ -54,7 +54,7 @@ class Network {
   network_message_callback_t message_callback = NULL;
   network_state_callback_t state_callback = NULL;
   void begin();
-  void send_json(JsonObject &obj);
+  void send_json(JsonObject &obj, bool now = false);
   void set_server(const char *host, int port, const char *password,
                   bool tls_enabled, bool tls_verify = false,
                   const uint8_t *fingerprint1 = NULL,

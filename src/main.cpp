@@ -214,7 +214,7 @@ void token_present(NFCToken token)
   token_lookup_timer.once_ms(config.token_query_timeout, std::bind(&token_info_callback, pending_token, false, "", 0));
 
   pending_token_time = millis();
-  net.send_json(obj);
+  net.send_json(obj, true);
 }
 
 void token_removed(NFCToken token)
@@ -475,7 +475,7 @@ void network_cmd_file_data(JsonObject &obj)
       reply["cmd"] = "file_continue";
       reply["filename"] = obj["filename"];
       reply["position"] = obj["position"].as<int>() + binary_length;
-      net.send_json(reply);
+      net.send_json(reply, true);
     }
   } else {
     reply["cmd"] = "file_write_error";
@@ -614,7 +614,7 @@ void network_cmd_firmware_data(JsonObject &obj)
       // more data required
       reply["cmd"] = "firmware_continue";
       reply["position"] = obj["position"].as<int>() + binary_length;
-      net.send_json(reply);
+      net.send_json(reply, true);
       firmware_status_callback(true, false, firmware_writer.Progress());
     }
   } else {
