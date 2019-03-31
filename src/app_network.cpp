@@ -35,6 +35,8 @@ void Network::begin() {
     state_callback(false, false, false);
   }
 
+  WiFi.setAutoConnect(false);
+  WiFi.setAutoReconnect(true);
   WiFi.enableAP(false);
   WiFi.enableSTA(true);
 
@@ -63,7 +65,6 @@ void Network::onWifiDisconnect() {
 
   tcpReconnectTimer.detach();
   client->close(true);
-  wifiReconnectTimer.once(2, std::bind(&Network::connectToWifi, this));
 }
 
 void Network::connectToWifi() {
