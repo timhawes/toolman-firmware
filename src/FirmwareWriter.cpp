@@ -15,6 +15,7 @@ void FirmwareWriter::Abort() {
     Update.end();
     strncpy(_md5, "", sizeof(_md5));
     _size = 0;
+    started = false;
   }
 }
 
