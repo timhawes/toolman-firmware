@@ -372,6 +372,12 @@ void set_firmware_timeout(bool enabled) {
 
 void network_state_callback(bool wifi_up, bool tcp_up, bool ready)
 {
+  if (!(wifi_up && tcp_up && ready)) {
+    file_timeout_timer.detach();
+    firmware_timeout_timer.detach();
+    file_writer.Abort();
+    firmware_writer.Abort();
+  }
   display.set_network(wifi_up, tcp_up, ready);
 }
 
