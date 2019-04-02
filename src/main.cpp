@@ -902,7 +902,7 @@ void setup()
 
   net.state_callback = network_state_callback;
   net.message_callback = network_message_callback;
-  net.begin();
+  net.begin(clientid);
 
   ui.begin();
 

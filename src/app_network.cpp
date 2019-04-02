@@ -27,7 +27,9 @@ void Network::set_server(const char *host, int port, const char *password,
   server_fingerprint2 = fingerprint2;
 }
 
-void Network::begin() {
+void Network::begin(const char *_clientid) {
+  clientid = _clientid;
+
   wifiConnectHandler = WiFi.onStationModeGotIP(std::bind(&Network::onWifiConnect, this));
   wifiDisconnectHandler = WiFi.onStationModeDisconnected(std::bind(&Network::onWifiDisconnect, this));
 
@@ -278,9 +280,6 @@ void Network::send_json(JsonObject &obj, bool now) {
 }
 
 void Network::send_cmd_hello() {
-  char clientid[10];
-  snprintf(clientid, sizeof(clientid), "ss-%06x", ESP.getChipId());
-
   DynamicJsonBuffer jb;
   JsonObject &obj = jb.createObject();
   obj["cmd"] = "hello";
