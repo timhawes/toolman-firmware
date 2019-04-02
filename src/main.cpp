@@ -29,7 +29,7 @@ const uint8_t flash_pin = 0;
 const uint8_t button_a_pin = 4;
 const uint8_t button_b_pin = 5;
 
-char clientid[10];
+char clientid[15];
 
 // config
 AppConfig config;
@@ -865,7 +865,7 @@ void setup()
   digitalWrite(pn532_reset_pin, HIGH);
   digitalWrite(relay_pin, LOW);
 
-  snprintf(clientid, sizeof(clientid), "ss-%06x", ESP.getChipId());
+  snprintf(clientid, sizeof(clientid), "toolman-%06x", ESP.getChipId());
   WiFi.hostname(String(clientid));
 
   Serial.begin(115200);
