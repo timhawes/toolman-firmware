@@ -195,7 +195,9 @@ void Network::connectToTcp() {
       },
       NULL);
 
+  client->setAckTimeout(5000);
   client->setRxTimeout(300);
+  client->setNoDelay(true);
 
   Serial.println("network: TCP client connecting...");
   if (!client->connect(server_host, server_port, server_tls_enabled)) {
