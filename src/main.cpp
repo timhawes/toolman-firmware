@@ -1031,8 +1031,8 @@ void loop() {
     }
   }
 
-  if (config.network_watchdog_time != 0) {
-    if (millis() - last_network_activity > config.network_watchdog_time) {
+  if (config.net_watchdog_timeout != 0) {
+    if (millis() - last_network_activity > config.net_watchdog_timeout) {
       if (system_is_idle()) {
         Serial.println("restarting due to network watchdog...");
         net.stop();

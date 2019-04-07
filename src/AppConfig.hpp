@@ -20,7 +20,7 @@ class AppConfig {
   char wpa_password[64];
   int active_threshold;
   int adc_multiplier;
-  int network_watchdog_time;
+  int net_watchdog_timeout;
   int nfc_read_data;
   int server_port;
   long adc_interval;

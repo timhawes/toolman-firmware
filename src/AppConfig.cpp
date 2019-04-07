@@ -19,7 +19,7 @@ void AppConfig::LoadDefaults() {
   adc_multiplier = 1;
   dev = false;
   idle_timeout = 600000;
-  network_watchdog_time = 3600000;
+  net_watchdog_timeout = 3600000;
   nfc_read_counter = false;
   nfc_read_data = 0;
   nfc_read_sig = false;
@@ -64,7 +64,7 @@ bool AppConfig::LoadJson(const char *filename) {
   adc_multiplier = root["adc_multiplier"];
   dev = root["dev"];
   idle_timeout = root["idle_timeout"];
-  network_watchdog_time = root["network_watchdog_time"];
+  net_watchdog_timeout = root["net_watchdog_timeout"];
   nfc_read_counter = root["nfc_read_counter"];
   nfc_read_data = root["nfc_read_data"];
   nfc_read_sig = root["nfc_read_sig"];
