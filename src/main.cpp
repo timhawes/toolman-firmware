@@ -708,11 +708,6 @@ void network_cmd_ping(JsonObject &obj)
   net.send_json(reply);
 }
 
-void network_cmd_reconnect(JsonObject &obj)
-{
-  net.reconnect(obj["type"]);
-}
-
 void network_cmd_reset(JsonObject &obj)
 {
   reset_pending = true;
@@ -828,8 +823,6 @@ void network_message_callback(JsonObject &obj)
     // ignore
   } else if (cmd == "ready") {
     // ignore
-  } else if (cmd == "reconnect") {
-    network_cmd_reconnect(obj);
   } else if (cmd == "reset") {
     network_cmd_reset(obj);
   } else if (cmd == "restart") {
