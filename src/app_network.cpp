@@ -103,6 +103,11 @@ void Network::connectToTcp() {
     return;
   }
 
+  if (client->connecting() || client->connected()) {
+    Serial.println("network: TCP client is already connected or connecting");
+    return;
+  }
+
   client->onError(
       [=](void *arg, AsyncClient *c, int error) {
         Serial.print("network: TCP client error ");
