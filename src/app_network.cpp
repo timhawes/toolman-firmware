@@ -138,7 +138,7 @@ void Network::connectToTcp() {
           }
           if (!matched) {
             Serial.println("network: TLS fingerprint doesn't match");
-            c->close();
+            c->close(true);
           }
         } else {
           Serial.println("network: TLS fingerprint not verified");
@@ -176,7 +176,7 @@ void Network::connectToTcp() {
               obj["cmd"] = "error";
               obj["error"] = "receive buffer full";
               send_json(obj);
-              c->close();
+              c->close(true);
               return;
             }
           }
