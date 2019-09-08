@@ -57,6 +57,7 @@ bool device_enabled = false; // the relay should be switched on
 bool device_relay = false; // the relay *is* switched on
 bool device_active = false; // the current sensor is registering a load
 unsigned int device_milliamps = 0;
+unsigned int device_milliamps_simple = 0;
 
 Ticker token_lookup_timer;
 Ticker file_timeout_timer;
@@ -111,6 +112,7 @@ void send_state()
   obj["state"] = state;
   obj["user"] = user_name;
   obj["milliamps"] = device_milliamps;
+  obj["milliamps_simple"] = device_milliamps_simple;
   obj["active_time"] = active_time;
   obj["idle_time"] = idle_time;
   net.send_json(obj);
@@ -925,6 +927,7 @@ void adc_loop()
 
   if (millis() - last_read > config.adc_interval) {
     device_milliamps = power_reader.ReadRmsCurrent() * 1000;
+    device_milliamps_simple = power_reader.ReadSimpleCurrent() * 1000;
     display.set_current(device_milliamps);
     last_read = millis();
 
