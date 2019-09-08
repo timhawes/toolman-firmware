@@ -921,6 +921,7 @@ void adc_loop()
     if (device_active == true) {
       device_active = false;
       device_milliamps = 0;
+      device_milliamps_simple = 0;
     }
     return;
   }
