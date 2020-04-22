@@ -238,7 +238,16 @@ void Network::receive_packet(const uint8_t *packet, int len) {
 
   DynamicJsonBuffer jb;
   JsonObject &obj = jb.parseObject(packet);
-  receive_json(obj);
+  if (obj.success()) {
+    receive_json(obj);
+  } else {
+    Serial.print("network: JSON parse failed ");
+    if (!debug_packet) {
+      String hex = hexlify((uint8_t*)packet, len);
+      Serial.print(hex);
+    }
+    Serial.println();
+  }
 }
 
 void Network::send_packet(const uint8_t *data, int len, bool now) {
