@@ -123,14 +123,6 @@ void Network::connectToTcp() {
       },
       NULL);
 
-  client->onPoll(
-      [=](void *arg, AsyncClient *c) {
-        if (tx_buffer->available() > 0) {
-          process_tx_buffer();
-        }
-      },
-      NULL);
-
   client->onConnect(
       [=](void *arg, AsyncClient *c) {
         Serial.println("network: TCP client connected");
@@ -196,14 +188,6 @@ void Network::connectToTcp() {
         if (rx_buffer->available() > rx_buffer_high_watermark) {
           rx_buffer_high_watermark = rx_buffer->available();
         }
-        // FIXME: Save memory by handling packets in-place and only use the
-        // buffer for incomplete packets
-        //process_rx_buffer();
-        if (!rx_scheduled) {
-          schedule_function(std::bind(&Network::process_rx_buffer, this));
-          rx_scheduled = true;
-          //rx_scheduled_time = millis();
-        }
       },
       NULL);
 
@@ -265,10 +249,6 @@ void Network::send_packet(const uint8_t *data, int len, bool now) {
   tx_buffer->write(header[1]);
   for (int i = 0; i < len; i++) {
     tx_buffer->write(data[i]);
-  }
-
-  if (now) {
-    process_tx_buffer();
   }
 }
 
@@ -364,4 +344,9 @@ size_t Network::process_rx_buffer() {
 
 void Network::reconnect() {
   client->close(true);
+}
+
+void Network::loop() {
+  process_rx_buffer();
+  process_tx_buffer();
 }

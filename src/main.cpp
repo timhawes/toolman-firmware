@@ -1006,6 +1006,10 @@ void loop() {
   
   yield();
 
+  net.loop();
+
+  yield();
+
   if (device_enabled == true && device_active == false && config.idle_timeout != 0) {
     if ((millis() - session_went_idle) > config.idle_timeout) {
       device_enabled = false;

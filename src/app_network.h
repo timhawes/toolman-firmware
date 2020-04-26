@@ -68,6 +68,7 @@ class Network {
   void set_wifi(const char *ssid, const char *password);
   void stop();
   void reconnect();
+  void loop();
 };
 
 #endif
