@@ -79,16 +79,7 @@ void Display::loop()
 void Display::set_user(const char *name)
 {
   strncpy(user_name, name, sizeof(user_name));
-  user_name[10] = ' ';
-  user_name[11] = ' ';
-  user_name[12] = ' ';
-  user_name[13] = 0;
-  draw_left(0, 1, name, 13);
-  //_lcd->setCursor(0, 1);
-  //_lcd->print(name);
-  //for (int i=strlen(name)-1; i<19; i++) {
-  //  _lcd->write(' ');
-  //}
+  draw_left(0, 1, name, 12);
 }
 
 void Display::set_device(const char *name)
@@ -142,16 +133,16 @@ void Display::set_state(bool enabled, bool active)
 {
   if (enabled) {
     if (active) {
-      draw_left(0, 0, "Active", 20);
+      draw_left(0, 0, "Active", 12);
       draw_right(10, 3, "Logout", 10);
     } else {
-      draw_left(0, 0, "Ready", 20);
+      draw_left(0, 0, "Ready", 12);
       draw_right(10, 3, "Logout", 10);
     }
   } else { // not enabled
     if (active) {
       // active but not enabled
-      draw_left(0, 0, "Waiting for stop", 20);
+      draw_left(0, 0, "Waiting", 12);
       draw_right(10, 3, "", 10); // erase logout button
     } else {
       // not enabled and not active
