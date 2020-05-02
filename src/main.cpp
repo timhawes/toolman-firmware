@@ -977,8 +977,8 @@ void loop() {
   if (device_enabled || device_active) {
     display.session_time = session_clock.read();
     display.active_time = active_clock.read();
+    display.draw_clocks();
   }
-  display.draw_clocks();
 
   yield();
   
