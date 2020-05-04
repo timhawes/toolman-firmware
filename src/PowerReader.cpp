@@ -64,13 +64,13 @@ float PowerReader::ReadSimpleCurrent()
   float vrms = vpp / 1.414213562 / 2;
   float amps = vrms * 100.0;
 
-  Serial.print("adc_to_volts="); Serial.println(adc_to_volts, 6);
-  Serial.print("min="); Serial.println(min_val, DEC);
-  Serial.print("max="); Serial.println(max_val, DEC);
-  Serial.print("diff="); Serial.println(diff, DEC);
-  Serial.print("Vpp="); Serial.println(vpp, 6);
-  Serial.print("Vrms="); Serial.println(vrms, 6);
-  Serial.print("amps="); Serial.println(amps, 6);
+  //Serial.print("adc_to_volts="); Serial.print(adc_to_volts, 6);
+  //Serial.print(" min="); Serial.print(min_val, DEC);
+  //Serial.print(" max="); Serial.print(max_val, DEC);
+  //Serial.print(" diff="); Serial.print(diff, DEC);
+  //Serial.print(" Vpp="); Serial.print(vpp, 6);
+  //Serial.print(" Vrms="); Serial.print(vrms, 6);
+  //Serial.print(" amps="); Serial.println(amps, 6);
 
   return ((float)(max_val - min_val) / (float)readings) * adc_to_amps / 1000;
   //return (unsigned long)((max_val - min_val) * config.adc_multiplier * 1000) / (config.adc_divider * readings);
