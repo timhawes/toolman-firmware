@@ -106,8 +106,7 @@ void send_state()
     }
   }
 
-  DynamicJsonBuffer jb;
-  JsonObject &obj = jb.createObject();
+  StaticJsonDocument<JSON_OBJECT_SIZE(7)> obj;
   obj["cmd"] = "state_info";
   obj["state"] = state;
   obj["user"] = user_name;
@@ -183,11 +182,10 @@ void token_present(NFCToken token)
   buzzer.chirp();
   display.message("Checking...");
   
-  DynamicJsonBuffer jb;
-  JsonObject &obj = jb.createObject();
-  JsonObject &tokenobj = jb.createObject();
+  //StaticJsonDocument<JSON_OBJECT_SIZE(8) + JSON_OBJECT_SIZE(4)> obj;
+  DynamicJsonDocument obj(512);
+  JsonObject tokenobj = obj.createNestedObject("token");
 
-  obj["cmd"] = "token_auth";
   if (token.ats_len > 0) {
     tokenobj["ats"] = hexlify(token.ats, token.ats_len);
   }
@@ -202,12 +200,13 @@ void token_present(NFCToken token)
   if (token.ntag_signature_len > 0) {
     tokenobj["ntag_signature"] = hexlify(token.ntag_signature, token.ntag_signature_len);
   }
-  if (token.data_len > 0) {
-    tokenobj["data"] = hexlify(token.data, token.data_len);
-  }
+  //if (token.data_len > 0) {
+  //  tokenobj["data"] = hexlify(token.data, token.data_len);
+  //}
   tokenobj["uid"] = token.uidString();
+
+  obj["cmd"] = "token_auth";
   obj["uid"] = token.uidString();
-  obj["token"] = tokenobj;
   if (token.read_time > 0) {
     obj["read_time"] = token.read_time;
   }
@@ -216,6 +215,7 @@ void token_present(NFCToken token)
   token_lookup_timer.once_ms(config.token_query_timeout, std::bind(&token_info_callback, pending_token, false, "", 0));
 
   pending_token_time = millis();
+  obj.shrinkToFit();
   net.send_json(obj, true);
 }
 
@@ -245,8 +245,7 @@ void load_config()
 
 void send_file_info(const char *filename)
 {
-  DynamicJsonBuffer jb;
-  JsonObject &obj = jb.createObject();
+  StaticJsonDocument<JSON_OBJECT_SIZE(4) + 64> obj;
   obj["cmd"] = "file_info";
   obj["filename"] = filename;
 
@@ -338,8 +337,7 @@ void file_timeout_callback()
 {
   file_writer.Abort();
 
-  DynamicJsonBuffer jb;
-  JsonObject &root = jb.createObject();
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> root;
   root["cmd"] = "file_write_error";
   root["error"] = "file write timed-out";
   net.send_json(root);
@@ -349,8 +347,7 @@ void firmware_timeout_callback()
 {
   file_writer.Abort();
 
-  DynamicJsonBuffer jb;
-  JsonObject &root = jb.createObject();
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> root;
   root["cmd"] = "firmware_write_error";
   root["error"] = "firmware write timed-out";
   net.send_json(root);
@@ -387,7 +384,7 @@ void network_state_callback(bool wifi_up, bool tcp_up, bool ready)
  * NETWORK COMMANDS                                                      *
  *************************************************************************/
 
-void network_cmd_buzzer_beep(JsonObject &obj)
+void network_cmd_buzzer_beep(const JsonDocument &obj)
 {
   if (obj["hz"]) {
     buzzer.beep(obj["ms"].as<int>(), obj["hz"].as<int>());
@@ -396,19 +393,19 @@ void network_cmd_buzzer_beep(JsonObject &obj)
   }
 }
 
-void network_cmd_buzzer_chirp(JsonObject &obj)
+void network_cmd_buzzer_chirp(const JsonDocument &obj)
 {
   buzzer.chirp();
 }
 
-void network_cmd_buzzer_click(JsonObject &obj)
+void network_cmd_buzzer_click(const JsonDocument &obj)
 {
   buzzer.click();
 }
 
-void network_cmd_buzzer_tune(JsonObject &obj)
+void network_cmd_buzzer_tune(const JsonDocument &obj)
 {
-  const char *b64 = obj.get<const char*>("data");
+  const char *b64 = obj["data"].as<char*>();
   unsigned int binary_length = decode_base64_length((unsigned char*)b64);
   uint8_t binary[binary_length];
   binary_length = decode_base64((unsigned char*)b64, binary);
@@ -423,7 +420,7 @@ void network_cmd_buzzer_tune(JsonObject &obj)
   buzzer.play(network_tune);
 }
 
-void network_cmd_display_backlight(JsonObject &obj)
+void network_cmd_display_backlight(const JsonDocument &obj)
 {
   if (obj["backlight"] == "on") {
     display.backlight_on();
@@ -434,7 +431,7 @@ void network_cmd_display_backlight(JsonObject &obj)
   }
 }
 
-void network_cmd_display_message(JsonObject &obj)
+void network_cmd_display_message(const JsonDocument &obj)
 {
   if (obj["timeout"] > 0) {
     display.message(obj["text"], obj["timeout"]);
@@ -443,22 +440,21 @@ void network_cmd_display_message(JsonObject &obj)
   }
 }
 
-void network_cmd_display_refresh(JsonObject &obj)
+void network_cmd_display_refresh(const JsonDocument &obj)
 {
   display.refresh();
 }
 
-void network_cmd_file_data(JsonObject &obj)
+void network_cmd_file_data(const JsonDocument &obj)
 {
-  const char *b64 = obj.get<const char*>("data");
+  const char *b64 = obj["data"].as<char*>();
   unsigned int binary_length = decode_base64_length((unsigned char*)b64);
   uint8_t binary[binary_length];
   binary_length = decode_base64((unsigned char*)b64, binary);
 
   set_file_timeout(false);
 
-  DynamicJsonBuffer jb;
-  JsonObject &reply = jb.createObject();
+  DynamicJsonDocument reply(2048);
 
   if (file_writer.Add(binary, binary_length, obj["position"])) {
     if (obj["eof"].as<bool>() == 1) {
@@ -495,10 +491,9 @@ void network_cmd_file_data(JsonObject &obj)
   set_file_timeout(file_writer.Running());
 }
 
-void network_cmd_file_delete(JsonObject &obj)
+void network_cmd_file_delete(const JsonDocument &obj)
 {
-  DynamicJsonBuffer jb;
-  JsonObject &reply = jb.createObject();
+  StaticJsonDocument<JSON_OBJECT_SIZE(3)> reply;
 
   if (SPIFFS.remove((const char*)obj["filename"])) {
     reply["cmd"] = "file_delete_ok";
@@ -512,11 +507,10 @@ void network_cmd_file_delete(JsonObject &obj)
   }
 }
 
-void network_cmd_file_dir_query(JsonObject &obj)
+void network_cmd_file_dir_query(const JsonDocument &obj)
 {
-  DynamicJsonBuffer jb;
-  JsonObject &reply = jb.createObject();
-  JsonArray &files = jb.createArray();
+  DynamicJsonDocument reply(2048);
+  JsonArray files = reply.createNestedArray("filenames");
   reply["cmd"] = "file_dir_info";
   reply["path"] = obj["path"];
   if (SPIFFS.exists((const char*)obj["path"])) {
@@ -524,22 +518,20 @@ void network_cmd_file_dir_query(JsonObject &obj)
     while (dir.next()) {
       files.add(dir.fileName());
     }
-    reply["filenames"] = files;
   } else {
     reply["filenames"] = (char*)NULL;
   }
   net.send_json(reply);
 }
 
-void network_cmd_file_query(JsonObject &obj)
+void network_cmd_file_query(const JsonDocument &obj)
 {
   send_file_info(obj["filename"]);
 }
 
-void network_cmd_file_rename(JsonObject &obj)
+void network_cmd_file_rename(const JsonDocument &obj)
 {
-  DynamicJsonBuffer jb;
-  JsonObject &reply = jb.createObject();
+  DynamicJsonDocument reply(2048);
 
   if (SPIFFS.rename((const char*)obj["old_filename"], (const char*)obj["new_filename"])) {
     reply["cmd"] = "file_rename_ok";
@@ -555,10 +547,9 @@ void network_cmd_file_rename(JsonObject &obj)
   }
 }
 
-void network_cmd_file_write(JsonObject &obj)
+void network_cmd_file_write(const JsonDocument &obj)
 {
-  DynamicJsonBuffer jb;
-  JsonObject &reply = jb.createObject();
+  DynamicJsonDocument reply(2048);
 
   set_file_timeout(false);
 
@@ -591,19 +582,20 @@ void network_cmd_file_write(JsonObject &obj)
   set_file_timeout(file_writer.Running());
 }
 
-void network_cmd_firmware_data(JsonObject &obj)
+void network_cmd_firmware_data(const JsonDocument &obj)
 {
-  const char *b64 = obj.get<const char*>("data");
+  const char *b64 = obj["data"].as<char*>();
   unsigned int binary_length = decode_base64_length((unsigned char*)b64);
-  uint8_t binary[binary_length];
+  //uint8_t binary[binary_length];
+  uint8_t *binary = new uint8_t[binary_length];
   binary_length = decode_base64((unsigned char*)b64, binary);
 
   set_firmware_timeout(false);
 
-  DynamicJsonBuffer jb;
-  JsonObject &reply = jb.createObject();
+  StaticJsonDocument<JSON_OBJECT_SIZE(3) + 64> reply;
 
   if (firmware_writer.Add(binary, binary_length, obj["position"])) {
+    delete[] binary;
     if (obj["eof"].as<bool>() == 1) {
       if (firmware_writer.Commit()) {
         // finished and successful
@@ -636,10 +628,9 @@ void network_cmd_firmware_data(JsonObject &obj)
   set_firmware_timeout(firmware_writer.Running());
 }
 
-void network_cmd_firmware_write(JsonObject &obj)
+void network_cmd_firmware_write(const JsonDocument &obj)
 {
-  DynamicJsonBuffer jb;
-  JsonObject &reply = jb.createObject();
+  StaticJsonDocument<JSON_OBJECT_SIZE(4) + 64> reply;
 
   set_firmware_timeout(false);
 
@@ -675,10 +666,9 @@ void network_cmd_firmware_write(JsonObject &obj)
   set_firmware_timeout(firmware_writer.Running());
 }
 
-void network_cmd_metrics_query(JsonObject &obj)
+void network_cmd_metrics_query(const JsonDocument &obj)
 {
-  DynamicJsonBuffer jb;
-  JsonObject &reply = jb.createObject();
+  DynamicJsonDocument reply(512);
   reply["cmd"] = "metrics_info";
   reply["esp_free_cont_stack"] = ESP.getFreeContStack();
   reply["esp_free_heap"] = ESP.getFreeHeap();
@@ -695,19 +685,19 @@ void network_cmd_metrics_query(JsonObject &obj)
   reply["net_tx_delay_count"] = net.tx_delay_count;
   reply["net_wifi_reconns"] = net.wifi_reconnections;
   reply["nfc_reset_count"] = nfc.reset_count;
+  reply.shrinkToFit();
   net.send_json(reply);
 }
 
-void network_cmd_motd(JsonObject &obj)
+void network_cmd_motd(const JsonDocument &obj)
 {
   display.set_motd(obj["motd"]);
   display.set_state(device_enabled, device_active);
 }
 
-void network_cmd_ping(JsonObject &obj)
+void network_cmd_ping(const JsonDocument &obj)
 {
-  DynamicJsonBuffer jb;
-  JsonObject &reply = jb.createObject();
+  StaticJsonDocument<JSON_OBJECT_SIZE(3) + 64> reply;
   reply["cmd"] = "pong";
   if (obj["seq"]) {
     reply["seq"] = obj["seq"];
@@ -718,7 +708,7 @@ void network_cmd_ping(JsonObject &obj)
   net.send_json(reply);
 }
 
-void network_cmd_reset(JsonObject &obj)
+void network_cmd_reset(const JsonDocument &obj)
 {
   reset_pending = true;
   if (obj["force"]) {
@@ -728,7 +718,7 @@ void network_cmd_reset(JsonObject &obj)
   }
 }
 
-void network_cmd_restart(JsonObject &obj)
+void network_cmd_restart(const JsonDocument &obj)
 {
   restart_pending = true;
   if (obj["force"]) {
@@ -738,12 +728,12 @@ void network_cmd_restart(JsonObject &obj)
   }
 }
 
-void network_cmd_state_query(JsonObject &obj)
+void network_cmd_state_query(const JsonDocument &obj)
 {
   send_state();
 }
 
-void network_cmd_stop(JsonObject &obj)
+void network_cmd_stop(const JsonDocument &obj)
 {
   if (device_enabled == true) {
     device_enabled = false;
@@ -752,12 +742,11 @@ void network_cmd_stop(JsonObject &obj)
   }
 }
 
-void network_cmd_system_query(JsonObject &obj)
+void network_cmd_system_query(const JsonDocument &obj)
 {
   FSInfo fs_info;
   SPIFFS.info(fs_info);
-  DynamicJsonBuffer jb;
-  JsonObject &reply = jb.createObject();
+  DynamicJsonDocument reply(1024);
   reply["cmd"] = "system_info";
   reply["esp_free_heap"] = ESP.getFreeHeap();
   reply["esp_chip_id"] = ESP.getChipId();
@@ -783,15 +772,16 @@ void network_cmd_system_query(JsonObject &obj)
   reply["fs_block_size"] = fs_info.blockSize;
   reply["fs_page_size"] = fs_info.pageSize;
   reply["millis"] = millis();
+  reply.shrinkToFit();
   net.send_json(reply);
 }
 
-void network_cmd_token_info(JsonObject &obj)
+void network_cmd_token_info(const JsonDocument &obj)
 {
   token_info_callback(obj["uid"], obj["found"], obj["name"], obj["access"]);
 }
 
-void network_message_callback(JsonObject &obj)
+void network_message_callback(const JsonDocument &obj)
 {
   String cmd = obj["cmd"];
 
@@ -852,10 +842,9 @@ void network_message_callback(JsonObject &obj)
   } else if (cmd == "token_info") {
     network_cmd_token_info(obj);
   } else {
-    DynamicJsonBuffer jb;
-    JsonObject &reply = jb.createObject();
+    StaticJsonDocument<JSON_OBJECT_SIZE(3)> reply;
     reply["cmd"] = "error";
-    reply["requested_cmd"] = reply["cmd"];
+    reply["requested_cmd"] = cmd.c_str();
     reply["error"] = "not implemented";
     net.send_json(reply);
   }

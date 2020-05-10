@@ -8,7 +8,7 @@
 #include <ArduinoJson.h>
 #include <ESPAsyncTCP.h>
 
-typedef void (*network_message_callback_t)(JsonObject &obj);
+typedef void (*network_message_callback_t)(const JsonDocument &obj);
 typedef void (*network_state_callback_t)(bool wifi_up, bool tcp_up, bool ready);
 
 class Network {
@@ -41,7 +41,7 @@ class Network {
   void onWifiDisconnect();
   size_t process_rx_buffer();
   size_t process_tx_buffer();
-  void receive_json(JsonObject &obj);
+  void receive_json(const JsonDocument &obj);
   void receive_packet(const uint8_t *data, int len);
   void send_cmd_hello();
   void send_packet(const uint8_t *data, int len, bool now = false);
@@ -60,7 +60,7 @@ class Network {
   network_message_callback_t message_callback = NULL;
   network_state_callback_t state_callback = NULL;
   void begin(const char *clientid);
-  void send_json(JsonObject &obj, bool now = false);
+  void send_json(const JsonDocument &obj, bool now = false);
   void set_server(const char *host, int port, const char *password,
                   bool tls_enabled, bool tls_verify = false,
                   const uint8_t *fingerprint1 = NULL,

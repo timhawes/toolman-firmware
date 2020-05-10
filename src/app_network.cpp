@@ -175,11 +175,10 @@ void Network::connectToTcp() {
           for (unsigned int i = 0; i < len; i++) {
             if (rx_buffer->write(((uint8_t *)data)[i]) != 1) {
               Serial.println("network: buffer is full, closing session!");
-              DynamicJsonBuffer jb;
-              JsonObject &obj = jb.createObject();
-              obj["cmd"] = "error";
-              obj["error"] = "receive buffer full";
-              send_json(obj);
+              StaticJsonDocument<JSON_OBJECT_SIZE(2)> doc;
+              doc["cmd"] = "error";
+              doc["error"] = "receive buffer full";
+              send_json(doc);
               c->close(true);
               return;
             }
@@ -216,21 +215,36 @@ void Network::stop() {
 void Network::receive_packet(const uint8_t *packet, int len) {
   if (debug_packet) {
     Serial.print("network: recv ");
-    String hex = hexlify((uint8_t*)packet, len);
-    Serial.println(hex);
-  }
-
-  DynamicJsonBuffer jb;
-  JsonObject &obj = jb.parseObject(packet);
-  if (obj.success()) {
-    receive_json(obj);
-  } else {
-    Serial.print("network: JSON parse failed ");
-    if (!debug_packet) {
-      String hex = hexlify((uint8_t*)packet, len);
-      Serial.print(hex);
+    for (int i=0; i<len; i++) {
+      Serial.printf("%02x", packet[i]);
     }
     Serial.println();
+  }
+
+  size_t doc_size = len * 2;
+  if (doc_size > 2048) {
+    doc_size = 2048;
+  }
+
+  DynamicJsonDocument doc(doc_size);
+  DeserializationError err = deserializeJson(doc, packet);
+  if (debug_json) {
+    Serial.printf("network: json-receive %d -> %d/%d ", len, doc.memoryUsage(), doc.capacity());
+    Serial.write(packet, len);
+    Serial.println();
+  }
+  doc.shrinkToFit();
+
+  if (err) {
+    Serial.printf("network: json-receive %d -> err/%d ", len, doc.capacity());
+    if (!debug_packet) {
+      for (int i=0; i<len; i++) {
+        Serial.printf("%02x", packet[i]);
+      }
+    }
+    Serial.println();
+  } else {
+    receive_json(doc);
   }
 }
 
@@ -239,8 +253,10 @@ void Network::send_packet(const uint8_t *data, int len, bool now) {
 
   if (debug_packet) {
     Serial.print("network: send ");
-    String hex = hexlify((uint8_t*)data, len);
-    Serial.println(hex);
+    for (int i=0; i<len; i++) {
+      Serial.printf("%02x", data[i]);
+    }
+    Serial.println();
   }
 
   header[0] = (len & 0xFF00) >> 8;
@@ -252,13 +268,7 @@ void Network::send_packet(const uint8_t *data, int len, bool now) {
   }
 }
 
-void Network::receive_json(JsonObject &obj) {
-  if (debug_json) {
-    Serial.print("network: recv ");
-    obj.printTo(Serial);
-    Serial.println();
-  }
-
+void Network::receive_json(const JsonDocument &obj) {
   if (obj["cmd"] == "ready") {
     Serial.println("network: ready");
     if (state_callback) {
@@ -271,26 +281,26 @@ void Network::receive_json(JsonObject &obj) {
   }
 }
 
-void Network::send_json(JsonObject &obj, bool now) {
-  String json;
-  obj.printTo(json);
+void Network::send_json(const JsonDocument &obj, bool now) {
+  int json_length = measureJson(obj);
+  char *json = new char[json_length+1];
+  serializeJson(obj, json, json_length+1);
 
   if (debug_json) {
-    Serial.print("network: send ");
-    obj.printTo(Serial);
-    Serial.println();
+    Serial.printf("network: json-send %d/%d -> %d ", obj.memoryUsage(), obj.capacity(), json_length);
+    Serial.println(json);
   }
 
-  send_packet((const uint8_t *)json.c_str(), json.length(), now);
+  send_packet((const uint8_t*)json, json_length, now);
+  delete[] json;
 }
 
 void Network::send_cmd_hello() {
-  DynamicJsonBuffer jb;
-  JsonObject &obj = jb.createObject();
-  obj["cmd"] = "hello";
-  obj["clientid"] = clientid;
-  obj["password"] = server_password;
-  send_json(obj);
+  StaticJsonDocument<JSON_OBJECT_SIZE(3) + 128> doc;
+  doc["cmd"] = "hello";
+  doc["clientid"] = clientid;
+  doc["password"] = server_password;
+  send_json(doc);
 }
 
 size_t Network::process_tx_buffer() {
@@ -304,9 +314,10 @@ size_t Network::process_tx_buffer() {
       if (sendable < available) {
         available = sendable;
       }
-      char out[available];
+      char *out = new char[available];
       tx_buffer->read(out, available);
       size_t sent = client->write(out, available);
+      delete[] out;
       return sent;
     } else {
       Serial.println("network: send_tx_buffer() can't send yet");
@@ -328,11 +339,12 @@ size_t Network::process_rx_buffer() {
     rx_buffer->peek(peekbuf, 2);
     uint16_t length = (peekbuf[0] << 8) | peekbuf[1];
     if (rx_buffer->available() >= length + 2) {
-      uint8_t packet[length];
+      uint8_t *packet = new uint8_t[length];
       rx_buffer->remove(2);
       rx_buffer->read((char *)packet, length);
       processed_bytes++;
       receive_packet(packet, length);
+      delete[] packet;
     } else {
       // packet isn't complete
       break;

@@ -43,12 +43,13 @@ bool AppConfig::LoadJson(const char *filename) {
     return false;
   }
 
-  DynamicJsonBuffer jb;
-  JsonObject &root = jb.parseObject(file);
+  DynamicJsonDocument root(4096);
+  DeserializationError err = deserializeJson(root, file);
   file.close();
 
-  if (!root.success()) {
-    Serial.println("AppConfig: failed to parse JSON");
+  if (err) {
+    Serial.print("AppConfig: failed to parse JSON: ");
+    Serial.println(err.c_str());
     LoadOverrides();
     return false;
   }
