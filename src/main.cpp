@@ -966,13 +966,6 @@ void adc_loop()
 }
 
 void loop() {
-  unsigned long loop_start_time;
-  unsigned long loop_run_time;
-
-  unsigned long start_time;
-  long t_display, t_nfc, t_ui, t_adc;
-
-  loop_start_time = millis();
 
   if (device_enabled || device_active) {
     display.session_time = session_clock.read();
@@ -982,27 +975,19 @@ void loop() {
 
   yield();
   
-  start_time = millis();
   nfc.loop();
-  t_nfc = millis() - start_time;
   
   yield();
   
-  start_time = millis();
   display.loop();
-  t_display = millis() - start_time;
   
   yield();
   
-  start_time = millis();
   ui.loop();
-  t_ui = millis() - start_time;
   
   yield();
   
-  start_time = millis();
   adc_loop();
-  t_adc = millis() - start_time;
   
   yield();
 
@@ -1027,17 +1012,6 @@ void loop() {
   
   if (status_updated) {
     send_state();
-  }
-
-  yield();
-
-  loop_run_time = millis() - loop_start_time;
-  if (loop_run_time > 56) {
-    Serial.print("loop time "); Serial.print(loop_run_time, DEC); Serial.print("ms: ");
-    Serial.print("nfc="); Serial.print(t_nfc, DEC); Serial.print("ms ");
-    Serial.print("display="); Serial.print(t_display, DEC); Serial.print("ms ");
-    Serial.print("ui="); Serial.print(t_ui, DEC); Serial.print("ms ");
-    Serial.print("adc="); Serial.print(t_adc, DEC); Serial.println("ms");
   }
 
   yield();
@@ -1088,7 +1062,5 @@ void loop() {
       display.refresh();
     }
   }
-
-  yield();
 
 }
