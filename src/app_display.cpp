@@ -1,5 +1,6 @@
 #include "app_display.h"
 #include <Arduino.h>
+#include "custom_chars.h"
 
 Display::Display(LiquidCrystal_I2C &lcd)
 {
@@ -8,44 +9,66 @@ Display::Display(LiquidCrystal_I2C &lcd)
 
 void Display::begin()
 {
-  uint8_t diamond_char[8] = {0, 4, 14, 31, 14, 4, 0};
-  uint8_t backslash_char[8] = {0, 16, 8, 4, 2, 1, 0};
-  uint8_t tick_char[8] = {0, 0, 1, 2, 20, 24, 16};
-  uint8_t cross_char[8] = {0, 0, 0, 10, 4, 10, 0};
   _lcd->begin();
-  _lcd->createChar(1, diamond_char);
-  _lcd->createChar(2, backslash_char);
-  _lcd->createChar(3, tick_char);
-  _lcd->createChar(4, cross_char);
+  _lcd->createChar(1, lcd_char_grin);
+  //_lcd->createChar(2, backslash_char);
+  _lcd->createChar(3, lcd_char_tick);
+  _lcd->createChar(4, lcd_char_cross);
+  _lcd->createChar(5, lcd_char_middot); // wifi icon
+  _lcd->createChar(6, lcd_char_middot); // network connection icon
+  _lcd->createChar(7, lcd_char_padlock_closed); // toolman status icon
   _lcd->clear();
+  _lcd->setCursor(8, 3);
+  _lcd->write(5);
+  _lcd->write(6);
+  _lcd->write(7);
+  _lcd->write(1);
   _lcd->setBacklight(1);
 }
 
 void Display::loop()
 {
   static unsigned long last_freeheap;
-  static unsigned long last_spin;
-  static uint8_t spinner_position;
-  //const char spinner[] = {124, 47, 45, 2};
-  //unsigned int spinner_length = 4;
-  const char spinner[] = "0123456789";
-  unsigned int spinner_length = 10;
+  static unsigned long last_millis;
+  static unsigned long last_uptime;
 
   if (freeheap_enabled) {
     if (millis() - last_freeheap > 500) {
       char t[6];
       snprintf(t, sizeof(t), "%05d", ESP.getFreeHeap());
-      draw_right(8, 5, t, 5);
+      draw_right(7, 2, t, 5);
       last_freeheap = millis();
     }
   }
 
-  if (spinner_enabled) {
-    if (millis() - last_spin > 100) {
-      spinner_position = (spinner_position + 1) % spinner_length;
-      _lcd->setCursor(spinner_x, spinner_y);
-      _lcd->write(spinner[spinner_position]);
-      last_spin = millis();
+  if (millis_enabled) {
+    if (millis() - last_millis > 500) {
+      _lcd->setCursor(0, 2);
+      _lcd->print(millis(), DEC);
+      last_millis = millis();
+    }
+  }
+
+  if (uptime_enabled) {
+    if (millis() - last_uptime > 1000) {
+      unsigned int m = millis();
+      if (m < 60000) {
+        char t[4];
+        snprintf(t, sizeof(t), "%ds", millis() / 1000);
+        draw_left(0, 2, t, 5);
+      } else if (m < 3600000) {
+        char t[4];
+        snprintf(t, sizeof(t), "%dm", millis() / 60000);
+        draw_left(0, 2, t, 5);
+      } else if (m < 86400000) {
+        char t[4];
+        snprintf(t, sizeof(t), "%dh", millis() / 3600000);
+        draw_left(0, 2, t, 5);
+      } else {
+        char t[7];
+        snprintf(t, sizeof(t), "%dd", millis() / 86400000);
+        draw_left(0, 2, t, 5);
+      }
     }
   }
 
@@ -88,13 +111,6 @@ void Display::set_device(const char *name)
   draw_left(0, 0, name, 20);
 }
 
-void Display::set_network(bool up)
-{
-  if (!up) {
-    message("Network Down");
-  }
-}
-
 void Display::set_network(bool wifi_up, bool tcp_up, bool ready)
 {
   if (restarting) {
@@ -102,53 +118,49 @@ void Display::set_network(bool wifi_up, bool tcp_up, bool ready)
     return;
   }
   
-  String m = "";
+  _lcd->setCursor(8, 3);
+  _lcd->write(5);
+  _lcd->write(6);
 
   if (wifi_up) {
-    m += "WiFi\x03 ";
+    _lcd->createChar(5, lcd_char_phone_bars);
   } else {
-    m += "WiFi\x04 ";
-  }
-
-  if (tcp_up) {
-    m += "TCP\x03 ";
-  } else {
-    m += "TCP\x04 ";
+    _lcd->createChar(5, lcd_char_middot);
   }
 
   if (ready) {
-    m += "Ready\x03";
+    _lcd->createChar(6, lcd_char_connected);
   } else {
-    m += "Ready\x04";
-  }
-
-  if (wifi_up && tcp_up && ready) {
-    message(m.c_str(), 2000);
-  } else {
-    message(m.c_str());
+    _lcd->createChar(6, lcd_char_middot);
   }
 }
 
 void Display::set_state(bool enabled, bool active)
 {
+  _lcd->setCursor(10, 3);
+  _lcd->write(7);
   if (enabled) {
     if (active) {
+      _lcd->createChar(7, lcd_char_play);
       draw_left(0, 0, "Active", 12);
-      draw_right(10, 3, "Logout", 10);
+      draw_right(12, 3, "Logout", 8);
     } else {
+      _lcd->createChar(7, lcd_char_pause);
       draw_left(0, 0, "Ready", 12);
-      draw_right(10, 3, "Logout", 10);
+      draw_right(12, 3, "Logout", 8);
     }
   } else { // not enabled
     if (active) {
       // active but not enabled
+      _lcd->createChar(7, lcd_char_padlock_open);
       draw_left(0, 0, "Waiting", 12);
-      draw_right(10, 3, "", 10); // erase logout button
+      draw_right(12, 3, "", 8); // erase logout button
     } else {
       // not enabled and not active
+      _lcd->createChar(7, lcd_char_padlock_closed);
       draw_left(0, 0, device_name, 20);
       draw_left(0, 1, motd, 20); // erase username, show motd
-      draw_right(10, 3, "", 10); // erase logout button
+      draw_right(12, 3, "", 8); // erase logout button
     }
   }
 }
@@ -161,27 +173,13 @@ void Display::set_current(unsigned int milliamps)
     return;
   }
 
-  //dtostrf(milliamps/1000.0, 0, 1, t);
-  //t[strlen(t)+1] = 0;
-  //t[strlen(t)] = 'A';
-
-  //snprintf(t, sizeof(t), "%d.%dmA", milliamps/1000, milliamps/100);
-
   snprintf(t, sizeof(t), "%umA", milliamps);
-
-  draw_left(0, 3, t, 7);
+  draw_right(13, 2, t, 7);
 }
 
 void Display::set_motd(const char *_motd)
 {
   strncpy(motd, _motd, sizeof(motd));
-}
-
-void Display::set_attempts(unsigned int new_attempts)
-{
-  char t[9];
-  snprintf(t, sizeof(t), "%d", new_attempts);
-  draw_right(8, 3, t, 3);
 }
 
 void Display::message(const char *text, unsigned long timeout)
@@ -258,8 +256,10 @@ void Display::firmware_warning()
 
 void Display::firmware_progress(unsigned int progress)
 {
-  String m = "Firmware " + String(progress) + "%";
-  message(m.c_str());
+  int frame_count = sizeof(lcd_sequence_finefile) / sizeof(lcd_sequence_finefile[0]);
+  int next_frame = (frame_count-1) * progress / 100;
+  _lcd->createChar(1, lcd_sequence_finefile[next_frame]);
+  char m[14];
 }
 
 void Display::refresh()
@@ -313,4 +313,8 @@ void Display::draw_clocks()
     prev_session_seconds = session_seconds;
     prev_active_seconds = active_seconds;
   }
+}
+
+void Display::set_char(int position, uint8_t* data) {
+  _lcd->createChar(position, data);
 }

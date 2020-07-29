@@ -47,13 +47,15 @@ public:
   void backlight_on();
   void backlight_off();
   void backlight_flashing();
-  bool spinner_enabled = false;
   bool current_enabled = false;
   bool attempts_enabled = false;
   bool freeheap_enabled = false;
+  bool millis_enabled = false;
+  bool uptime_enabled = false;
   unsigned long active_time;
   unsigned long session_time;
   void draw_clocks();
+  void set_char(int position, uint8_t* data);
 };
 
 #endif
