@@ -48,7 +48,6 @@ char last_user[20];
 uint8_t user_access = 0;
 char pending_token[15];
 unsigned long pending_token_time = 0;
-unsigned long last_network_activity = 0;
 
 bool firmware_restart_pending = false;
 bool reset_pending = false;
@@ -233,6 +232,7 @@ void load_config()
                 config.server_fingerprint1, config.server_fingerprint2);
   net.setCred(clientid, config.server_password);
   net.setDebug(config.dev);
+  net.setWatchdog(config.net_watchdog_timeout);
   nfc.read_counter = config.nfc_read_counter;
   nfc.read_data = config.nfc_read_data;
   nfc.read_sig = config.nfc_read_sig;
@@ -478,8 +478,6 @@ void network_message_callback(const JsonDocument &obj)
 {
   String cmd = obj["cmd"];
 
-  last_network_activity = millis();
-
   if (cmd == "buzzer_beep") {
     network_cmd_buzzer_beep(obj);
   } else if (cmd == "buzzer_chirp") {
@@ -685,21 +683,6 @@ void loop() {
       ESP.restart();
       delay(5000);
       display.refresh();
-    }
-  }
-
-  if (config.net_watchdog_timeout != 0) {
-    if (millis() - last_network_activity > config.net_watchdog_timeout) {
-      if (system_is_idle()) {
-        Serial.println("restarting due to network watchdog...");
-        net.stop();
-        display.firmware_warning();
-        delay(1000);
-        Serial.println("restarting now!");
-        ESP.restart();
-        delay(5000);
-        display.refresh();
-      }
     }
   }
 
