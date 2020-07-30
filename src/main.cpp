@@ -9,8 +9,6 @@
 #include <base64.hpp>
 
 #include "AppConfig.hpp"
-#include "FileWriter.hpp"
-#include "FirmwareWriter.hpp"
 #include "PowerReader.hpp"
 #include "app_display.h"
 #include "NetThing.hpp"
