@@ -243,34 +243,6 @@ void load_config()
   power_reader.SetAdcAmpRatio(config.adc_multiplier);
 }
 
-void send_file_info(const char *filename)
-{
-  StaticJsonDocument<JSON_OBJECT_SIZE(4) + 64> obj;
-  obj["cmd"] = "file_info";
-  obj["filename"] = filename;
-
-  File f = SPIFFS.open(filename, "r");
-  if (f) {
-    MD5Builder md5;
-    md5.begin();
-    while (f.available()) {
-      uint8_t buf[256];
-      size_t buflen;
-      buflen = f.readBytes((char*)buf, 256);
-      md5.add(buf, buflen);
-    }
-    md5.calculate();
-    obj["size"] = f.size();
-    obj["md5"] = md5.toString();
-    f.close();
-  } else {
-    obj["size"] = (char*)NULL;
-    obj["md5"] = (char*)NULL;
-  }
-
-  net.sendJson(obj);
-}
-
 void button_callback(uint8_t button, bool state)
 {
   static bool button_a;
