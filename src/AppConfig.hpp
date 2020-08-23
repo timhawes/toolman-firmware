@@ -22,6 +22,10 @@ class AppConfig {
   int adc_multiplier;
   int net_watchdog_timeout;
   int nfc_read_data;
+  int nfc_check_interval = 10000;
+  int nfc_reset_interval = 1000;
+  int nfc_5s_limit = 30;
+  int nfc_1m_limit = 60;
   int server_port;
   long adc_interval;
   long idle_timeout;

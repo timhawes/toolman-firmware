@@ -33,6 +33,7 @@ public:
   void set_current(unsigned int milliamps);
   void set_motd(const char *motd);
   void set_attempts(unsigned int attempts);
+  void set_nfc_state(bool ready);
   void message(const char *text, unsigned long timeout=0);
   void set_network(bool up);
   void set_network(bool wifi_up, bool ip_up, bool session_up);

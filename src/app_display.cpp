@@ -318,3 +318,11 @@ void Display::draw_clocks()
 void Display::set_char(int position, uint8_t* data) {
   _lcd->createChar(position, data);
 }
+
+void Display::set_nfc_state(bool ready) {
+  if (ready) {
+    _lcd->createChar(1, lcd_char_grin);
+  } else {
+    _lcd->createChar(1, lcd_char_cross);
+  }
+}
