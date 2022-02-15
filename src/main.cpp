@@ -505,6 +505,7 @@ void setup()
   digitalWrite(relay_pin, LOW);
 
   snprintf(clientid, sizeof(clientid), "toolman-%06x", ESP.getChipId());
+  wifi_set_sleep_type(NONE_SLEEP_T);
   WiFi.hostname(String(clientid));
 
   wifiEventConnectHandler = WiFi.onStationModeGotIP(wifi_connect_callback);
