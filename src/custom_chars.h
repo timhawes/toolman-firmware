@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2020 Tim Hawes
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #ifndef CUSTOM_CHARS_H
 #define CUSTOM_CHARS_H
 

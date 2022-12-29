@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2017-2019 Tim Hawes
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "app_ui.h"
 
 UI::UI(int flash_pin, int a_pin, int b_pin)
