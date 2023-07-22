@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio/.cache
+        key: ${{ runner.os }}-pio
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install --upgrade pre-commit
+        python -m pip install --upgrade platformio
+    - name: pre-commit
+      run: |
+        pre-commit run --all-files
+    - name: Build PlatformIO Project
+      run: pio run
+    - name: Prepare variables to name the artifact
+      run: |
+        echo "TODAY=$(date +'%Y%m%d')" >> $GITHUB_ENV
+        echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+        echo "BIN_MD5=$(md5sum .pio/build/esp12e/firmware.bin | cut -d' ' -f1)" >>$GITHUB_ENV
+    - name: Rename the artifact
+      run: |
+        mkdir firmware
+        cp .pio/build/esp12e/firmware.bin firmware/toolman-esp8266-${{env.TODAY}}-git-${{env.SHORT_SHA}}-${{env.BIN_MD5}}.bin
+        cp .pio/build/esp12e/firmware.elf firmware/toolman-esp8266-${{env.TODAY}}-git-${{env.SHORT_SHA}}-${{env.BIN_MD5}}.elf
+    - uses: actions/upload-artifact@v3
+      with:
+        name: firmware
+        path: firmware/
+
+  upload:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: firmware
+          path: firmware
+      - name: Upload
+        run: |
+          for filename in *; do
+            curl \
+              -X PUT \
+              --oauth2-bearer ${{secrets.ARTIFACT_KEY}} \
+              --header "Content-Type: application/octet-stream" \
+              --data-binary @$filename \
+              --fail \
+              ${{vars.ARTIFACT_URL}}/$filename
+          done
+        working-directory: firmware
