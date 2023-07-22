@@ -210,7 +210,7 @@ void token_present(NFCToken token)
   if (token.read_time > 0) {
     obj["read_time"] = token.read_time;
   }
-  
+
   strncpy(pending_token, token.uidString().c_str(), sizeof(pending_token));
   token_lookup_timer.once_ms(config.token_query_timeout, std::bind(&token_info_callback, pending_token, false, "", 0));
 
@@ -617,21 +617,21 @@ void loop() {
   }
 
   yield();
-  
+
   nfc.loop();
-  
+
   yield();
-  
+
   display.loop();
-  
+
   yield();
-  
+
   ui.loop();
-  
+
   yield();
-  
+
   adc_loop();
-  
+
   yield();
 
   net.loop();
@@ -652,7 +652,7 @@ void loop() {
   }
 
   yield();
-  
+
   if (status_updated) {
     send_state();
   }

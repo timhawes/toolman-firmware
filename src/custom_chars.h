@@ -384,31 +384,31 @@ uint8_t *lcd_sequence_finefile[] = {
 };
 
 uint8_t *lcd_sequence_roundspin[] = {
-    lcd_char_roundspin1, 
-    lcd_char_roundspin2, 
-    lcd_char_roundspin3, 
-    lcd_char_roundspin4, 
-    lcd_char_roundspin5, 
+    lcd_char_roundspin1,
+    lcd_char_roundspin2,
+    lcd_char_roundspin3,
+    lcd_char_roundspin4,
+    lcd_char_roundspin5,
     lcd_char_roundspin6
 };
 
 uint8_t *lcd_sequence_padlock[] = {
-    lcd_char_padlock_closed, 
+    lcd_char_padlock_closed,
     lcd_char_padlock_open
 };
 
 uint8_t *lcd_sequence_pacman[] = {
-    lcd_char_pacman1, 
+    lcd_char_pacman1,
     lcd_char_pacman2
 };
 
 uint8_t *lcd_sequence_pauseplay[] = {
-    lcd_char_pause, 
+    lcd_char_pause,
     lcd_char_play
 };
 
 uint8_t *lcd_sequence_updown_ani[] = {
-    lcd_char_connected, 
+    lcd_char_connected,
     lcd_char_disconnected
 };
 

@@ -121,7 +121,7 @@ void Display::set_network(bool wifi_up, bool tcp_up, bool ready)
     // don't show network status on the "Restarting..." screen
     return;
   }
-  
+
   _lcd->setCursor(8, 3);
   _lcd->write(5);
   _lcd->write(6);
