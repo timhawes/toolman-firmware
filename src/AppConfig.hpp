@@ -37,6 +37,7 @@ class AppConfig {
   int server_port;
   long adc_interval;
   long idle_timeout;
+  unsigned long system_idle_timeout;
   long token_query_timeout;
   uint8_t server_fingerprint1[21];
   uint8_t server_fingerprint2[21];

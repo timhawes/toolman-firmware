@@ -40,6 +40,7 @@ void AppConfig::LoadDefaults() {
   server_tls_enabled = false;
   server_tls_verify = false;
   swap_buttons = false;
+  system_idle_timeout = 300000;
   token_query_timeout = 1000;
 }
 
@@ -154,6 +155,7 @@ bool AppConfig::LoadAppJson(const char *filename) {
   quiet = root["quiet"] | false;
   reboot_enabled = root["reboot_enabled"];
   swap_buttons = root["swap_buttons"];
+  system_idle_timeout = root["system_idle_timeout"] | 300000;
   token_query_timeout = root["token_query_timeout"];
 
   LoadOverrides();

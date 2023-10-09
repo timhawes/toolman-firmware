@@ -72,14 +72,41 @@ unsigned long session_went_active;
 unsigned long session_went_idle;
 bool status_updated = false;
 
+// track UI or control activity to determine system idle state
+unsigned long last_activity;
+bool system_active = false;
+
 PowerReader power_reader;
 
 buzzer_note network_tune[128];
 buzzer_note ascending[] = { {1000, 250}, {1500, 250}, {2000, 250}, {0, 0} };
 
-bool system_is_idle()
+unsigned long system_idle_time()
 {
-  return device_enabled == false && device_relay == false && device_active == false;
+  const long max_idle_time = 2143883648; // rollover point minus one hour
+  long idle = millis() - last_activity;
+  if (idle > max_idle_time) {
+    // cap the idle time to avoid millis() rollover
+    last_activity = millis() - max_idle_time;
+    return max_idle_time;
+  } else {
+    return idle;
+  }
+}
+
+void mark_system_active()
+{
+  last_activity = millis();
+  if (!system_active) {
+    system_active = true;
+    display.backlight_on();
+  }
+}
+
+void mark_system_idle()
+{
+  system_active = false;
+  display.backlight_off();
 }
 
 void send_state()
@@ -198,6 +225,7 @@ void token_present(NFCToken token)
   } else {
     buzzer.chirp();
   }
+  mark_system_active();
   display.message("Checking...");
   DynamicJsonDocument obj(512);
   JsonObject tokenobj = obj.createNestedObject("token");
@@ -291,6 +319,8 @@ void button_callback(uint8_t button, bool state)
 {
   static bool button_a;
   static bool button_b;
+
+  mark_system_active();
 
   switch (button) {
     case 0: {
@@ -468,6 +498,8 @@ void network_cmd_metrics_query(const JsonDocument &obj)
   reply["millis"] = millis();
   reply["nfc_reset_count"] = nfc.reset_count;
   reply["nfc_token_count"] = nfc.token_count;
+  reply["last_activity"] = last_activity;
+  reply["system_idle_time"] = system_idle_time();
   reply.shrinkToFit();
   net.sendJson(reply);
 }
@@ -606,6 +638,8 @@ void setup()
   net.setCommandKey("cmd");
   net.start();
 
+  mark_system_active();
+
   ui.begin();
 
   nfc.token_present_callback = token_present;
@@ -703,6 +737,14 @@ void loop() {
     device_relay = false;
   }
 
+  if (device_enabled || device_active || device_relay) {
+    mark_system_active();
+  }
+
+  if (system_idle_time() > config.system_idle_timeout) {
+    mark_system_idle();
+  }
+
   yield();
 
   if (status_updated) {
@@ -712,10 +754,11 @@ void loop() {
   yield();
 
   if (firmware_restart_pending) {
-    if (system_is_idle()) {
+    if (system_idle_time() > 1000) {
       Serial.println("restarting to complete firmware install...");
       net.stop();
       display.firmware_warning();
+      display.backlight_on();
       delay(1000);
       Serial.println("restarting now!");
       ESP.restart();
@@ -725,10 +768,11 @@ void loop() {
   }
 
   if (restart_pending) {
-    if (system_is_idle()) {
+    if (system_idle_time() != 0) {
       Serial.println("rebooting at remote request...");
       net.stop();
       display.restart_warning();
+      display.backlight_on();
       delay(1000);
       Serial.println("restarting now!");
       ESP.restart();
