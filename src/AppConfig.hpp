@@ -16,6 +16,7 @@ class AppConfig {
   bool nfc_read_sig;
   bool server_tls_enabled;
   bool server_tls_verify;
+  bool quiet;
   bool swap_buttons;
   bool reboot_enabled;
   char name[21];

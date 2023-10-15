@@ -34,6 +34,7 @@ void AppConfig::LoadDefaults() {
   nfc_reset_interval = 1000;
   nfc_5s_limit = 30;
   nfc_1m_limit = 60;
+  quiet = false;
   reboot_enabled = false;
   server_port = 13260;
   server_tls_enabled = false;
@@ -150,6 +151,7 @@ bool AppConfig::LoadAppJson(const char *filename) {
   nfc_reset_interval = root["nfc_reset_interval"] | 1000;
   nfc_5s_limit = root["nfc_5s_limit"] | 30;
   nfc_1m_limit = root["nfc_1m_limit"] | 60;
+  quiet = root["quiet"] | false;
   reboot_enabled = root["reboot_enabled"];
   swap_buttons = root["swap_buttons"];
   token_query_timeout = root["token_query_timeout"];

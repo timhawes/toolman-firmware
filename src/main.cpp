@@ -142,7 +142,11 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       active_clock.reset();
       display.message("Access Granted", 2000);
       display.set_state(device_enabled, false);
-      buzzer.beep(50);
+      if (config.quiet) {
+        buzzer.click();
+      } else {
+        buzzer.beep(50);
+      }
       if (config.events) net.sendEvent("auth", 128, "uid=%s user=%s type=online access=granted", uid, user_name);
     } else {
       display.message("Access Denied", 2000);
@@ -168,7 +172,11 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       active_clock.reset();
       display.message("Access Granted", 2000);
       display.set_state(device_enabled, false);
-      buzzer.beep(50);
+      if (config.quiet) {
+        buzzer.click();
+      } else {
+        buzzer.beep(50);
+      }
       if (config.events) net.sendEvent("auth", 128, "uid=%s user=%s type=offline access=granted", uid, user_name);
       return;
     }
@@ -185,7 +193,11 @@ void token_present(NFCToken token)
 {
   Serial.print("token_present: ");
   Serial.println(token.uidString());
-  buzzer.chirp();
+  if (config.quiet) {
+    buzzer.click();
+  } else {
+    buzzer.chirp();
+  }
   display.message("Checking...");
   DynamicJsonDocument obj(512);
   JsonObject tokenobj = obj.createNestedObject("token");
