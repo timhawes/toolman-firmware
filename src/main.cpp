@@ -1,11 +1,10 @@
-// SPDX-FileCopyrightText: 2017-2022 Tim Hawes
+// SPDX-FileCopyrightText: 2017-2023 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <FS.h>
-#include <Hash.h>
 
 #include <ArduinoJson.h>
 #include <Buzzer.hpp>
@@ -41,7 +40,7 @@ PN532 pn532(pn532i2c);
 NFC nfc(pn532i2c, pn532, pn532_reset_pin);
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 Display display(lcd);
-NetThing net;
+NetThing net(1500, 4096);
 Buzzer buzzer(buzzer_pin);
 UI ui(flash_pin, button_a_pin, button_b_pin);
 
@@ -52,7 +51,6 @@ char pending_token[15];
 unsigned long pending_token_time = 0;
 
 bool firmware_restart_pending = false;
-bool reset_pending = false;
 bool restart_pending = false;
 bool device_enabled = false; // the relay should be switched on
 bool device_relay = false; // the relay *is* switched on
@@ -76,7 +74,7 @@ bool status_updated = false;
 
 PowerReader power_reader;
 
-buzzer_note network_tune[50];
+buzzer_note network_tune[128];
 buzzer_note ascending[] = { {1000, 250}, {1500, 250}, {2000, 250}, {0, 0} };
 
 bool system_is_idle()
@@ -145,8 +143,10 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       display.message("Access Granted", 2000);
       display.set_state(device_enabled, false);
       buzzer.beep(50);
+      if (config.events) net.sendEvent("auth", 128, "uid=%s user=%s type=online access=granted", uid, user_name);
     } else {
       display.message("Access Denied", 2000);
+      if (config.events) net.sendEvent("auth", 128, "uid=%s user=%s type=online access=denied", uid, name);
     }
     return;
   }
@@ -169,11 +169,15 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       display.message("Access Granted", 2000);
       display.set_state(device_enabled, false);
       buzzer.beep(50);
+      if (config.events) net.sendEvent("auth", 128, "uid=%s user=%s type=offline access=granted", uid, user_name);
       return;
     }
   }
 
   display.message("Access Denied", 2000);
+
+  if (config.events) net.sendEvent("auth", 128, "uid=%s user=%s type=offline access=denied", uid, name);
+
   return;
 }
 
@@ -217,6 +221,7 @@ void token_present(NFCToken token)
   pending_token_time = millis();
   obj.shrinkToFit();
   net.sendJson(obj, true);
+  if (config.events) net.sendEvent("token", 64, "uid=%s", pending_token);
 }
 
 void token_removed(NFCToken token)
@@ -225,16 +230,28 @@ void token_removed(NFCToken token)
   Serial.println(token.uidString());
 }
 
-void load_config()
+void load_wifi_config()
 {
-  config.LoadJson();
+  config.LoadWifiJson();
   net.setWiFi(config.ssid, config.wpa_password);
+}
+
+void load_net_config()
+{
+  config.LoadNetJson();
   net.setServer(config.server_host, config.server_port,
                 config.server_tls_enabled, config.server_tls_verify,
                 config.server_fingerprint1, config.server_fingerprint2);
   net.setCred(clientid, config.server_password);
   net.setDebug(config.dev);
-  net.setWatchdog(config.net_watchdog_timeout);
+  net.setConnectionStableTime(config.network_conn_stable_time);
+  net.setReconnectMaxTime(config.network_reconnect_max_time);
+  net.setReceiveWatchdog(config.network_watchdog_time);
+}
+
+void load_app_config()
+{
+  config.LoadAppJson();
   nfc.read_counter = config.nfc_read_counter;
   nfc.read_data = config.nfc_read_data;
   nfc.read_sig = config.nfc_read_sig;
@@ -249,6 +266,13 @@ void load_config()
   ui.swap_buttons(config.swap_buttons);
   power_reader.SetInterval(config.adc_interval);
   power_reader.SetAdcAmpRatio(config.adc_multiplier);
+}
+
+void load_config()
+{
+  load_wifi_config();
+  load_net_config();
+  load_app_config();
 }
 
 void button_callback(uint8_t button, bool state)
@@ -285,6 +309,7 @@ void button_callback(uint8_t button, bool state)
           device_enabled = false;
           status_updated = true;
           display.set_state(device_enabled, device_active);
+          if (config.events) net.sendEvent("logout");
         }
       }
       break;
@@ -348,8 +373,14 @@ void network_transfer_status_callback(const char *filename, int progress, bool a
       display.firmware_progress(progress);
     }
   }
-  if (changed && strcmp("config.json", filename) == 0) {
-    load_config();
+  if (changed && strcmp("wifi.json", filename) == 0) {
+    load_wifi_config();
+  }
+  if (changed && strcmp("net.json", filename) == 0) {
+    load_net_config();
+  }
+  if (changed && strcmp("app.json", filename) == 0) {
+    load_app_config();
   }
 }
 
@@ -378,7 +409,7 @@ void network_cmd_buzzer_click(const JsonDocument &obj)
 
 void network_cmd_buzzer_tune(const JsonDocument &obj)
 {
-  const char *b64 = obj["data"].as<char*>();
+  const char *b64 = obj["data"].as<const char*>();
   unsigned int binary_length = decode_base64_length((unsigned char*)b64);
   uint8_t binary[binary_length];
   binary_length = decode_base64((unsigned char*)b64, binary);
@@ -446,12 +477,18 @@ void network_cmd_stop(const JsonDocument &obj)
     device_enabled = false;
     status_updated = true;
     display.set_state(device_enabled, device_active);
+    if (config.events) net.sendEvent("logout");
   }
 }
 
 void network_cmd_token_info(const JsonDocument &obj)
 {
-  token_info_callback(obj["uid"], obj["found"], obj["name"], obj["access"]);
+  token_info_callback(
+    obj["uid"],
+    obj["found"] | false,
+    obj["name"] | "",
+    obj["access"] | 0
+  );
 }
 
 void network_message_callback(const JsonDocument &obj)
@@ -531,10 +568,10 @@ void setup()
     Serial.println("SPIFFS.begin() failed");
   }
 
-  if (SPIFFS.exists("config.json")) {
+  if (SPIFFS.exists("wifi.json") && SPIFFS.exists("net.json")) {
     load_config();
   } else {
-    Serial.println("config.json is missing, entering setup mode");
+    Serial.println("config is missing, entering setup mode");
     display.setup_mode(clientid);
     net.stop();
     delay(1000);
@@ -580,7 +617,7 @@ void adc_loop()
     return;
   }
 
-  if (millis() - last_read > config.adc_interval) {
+  if ((long)(millis() - last_read) > config.adc_interval) {
     device_milliamps = power_reader.ReadRmsCurrent() * 1000;
     device_milliamps_simple = power_reader.ReadSimpleCurrent() * 1000;
     display.set_current(device_milliamps);
@@ -595,6 +632,7 @@ void adc_loop()
         session_went_active = millis();
         active_clock.start();
         display.set_state(device_enabled, device_active);
+        if (config.events) net.sendEvent("active");
       }
     } else {
       if (device_active) {
@@ -603,6 +641,7 @@ void adc_loop()
         session_went_idle = millis();
         active_clock.stop();
         display.set_state(device_enabled, device_active);
+        if (config.events) net.sendEvent("inactive");
       }
     }
   }
@@ -639,10 +678,11 @@ void loop() {
   yield();
 
   if (device_enabled == true && device_active == false && config.idle_timeout != 0) {
-    if ((millis() - session_went_idle) > config.idle_timeout) {
+    if ((long)(millis() - session_went_idle) > config.idle_timeout) {
       device_enabled = false;
       status_updated = true;
       display.set_state(device_enabled, device_active);
+      if (config.events) net.sendEvent("logout");
     }
   }
 
@@ -672,20 +712,14 @@ void loop() {
     }
   }
 
-  if (reset_pending || restart_pending) {
+  if (restart_pending) {
     if (system_is_idle()) {
       Serial.println("rebooting at remote request...");
       net.stop();
       display.restart_warning();
       delay(1000);
-      if (reset_pending) {
-        Serial.println("resetting now!");
-        ESP.reset();
-      }
-      if (restart_pending) {
-        Serial.println("restarting now!");
-        ESP.restart();
-      }
+      Serial.println("restarting now!");
+      ESP.restart();
       delay(5000);
       display.refresh();
     }

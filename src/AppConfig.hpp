@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2019-2020 Tim Hawes
+// SPDX-FileCopyrightText: 2019-2023 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -11,6 +11,7 @@ class AppConfig {
  public:
   AppConfig();
   bool dev;
+  bool events;
   bool nfc_read_counter;
   bool nfc_read_sig;
   bool server_tls_enabled;
@@ -24,7 +25,9 @@ class AppConfig {
   char wpa_password[64];
   int active_threshold;
   int adc_multiplier;
-  int net_watchdog_timeout;
+  int network_conn_stable_time;
+  int network_reconnect_max_time;
+  int network_watchdog_time;
   int nfc_read_data;
   int nfc_check_interval = 10000;
   int nfc_reset_interval = 1000;
@@ -37,7 +40,9 @@ class AppConfig {
   uint8_t server_fingerprint1[21];
   uint8_t server_fingerprint2[21];
   void LoadDefaults();
-  bool LoadJson(const char *filename = "config.json");
+  bool LoadWifiJson(const char *filename = "wifi.json");
+  bool LoadNetJson(const char *filename = "net.json");
+  bool LoadAppJson(const char *filename = "app.json");
   void LoadOverrides();
 };
 

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2017-2019 Tim Hawes
+// SPDX-FileCopyrightText: 2017-2023 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -8,8 +8,6 @@
 #include <Arduino.h>
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
-
-#include "app_display.h"
 
 class SetupMode
 {

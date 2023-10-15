@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2019-2020 Tim Hawes
+// SPDX-FileCopyrightText: 2019-2023 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -22,8 +22,11 @@ void AppConfig::LoadDefaults() {
   adc_interval = 1000;
   adc_multiplier = 1;
   dev = false;
+  events = false;
   idle_timeout = 600000;
-  net_watchdog_timeout = 3600000;
+  network_conn_stable_time = 30000;
+  network_reconnect_max_time = 300000;
+  network_watchdog_time = 3600000;
   nfc_read_counter = false;
   nfc_read_data = 0;
   nfc_read_sig = false;
@@ -43,10 +46,80 @@ void AppConfig::LoadOverrides() {
 
 }
 
-bool AppConfig::LoadJson(const char *filename) {
+bool AppConfig::LoadWifiJson(const char *filename) {
   File file = SPIFFS.open(filename, "r");
   if (!file) {
-    Serial.println("AppConfig: file not found");
+    Serial.println("AppConfig: wifi file not found");
+    LoadOverrides();
+    return false;
+  }
+
+  DynamicJsonDocument root(4096);
+  DeserializationError err = deserializeJson(root, file);
+  file.close();
+
+  if (err) {
+    Serial.print("AppConfig: failed to parse JSON: ");
+    Serial.println(err.c_str());
+    LoadOverrides();
+    return false;
+  }
+
+  root["ssid"].as<String>().toCharArray(ssid, sizeof(ssid));
+  root["password"].as<String>().toCharArray(wpa_password, sizeof(wpa_password));
+
+  LoadOverrides();
+
+  Serial.println("AppConfig: wifi loaded");
+  return true;
+}
+
+bool AppConfig::LoadNetJson(const char *filename) {
+  File file = SPIFFS.open(filename, "r");
+  if (!file) {
+    Serial.println("AppConfig: net file not found");
+    LoadOverrides();
+    return false;
+  }
+
+  DynamicJsonDocument root(4096);
+  DeserializationError err = deserializeJson(root, file);
+  file.close();
+
+  if (err) {
+    Serial.print("AppConfig: failed to parse JSON: ");
+    Serial.println(err.c_str());
+    LoadOverrides();
+    return false;
+  }
+
+  root["host"].as<String>().toCharArray(server_host, sizeof(server_host));
+  root["password"].as<String>().toCharArray(server_password, sizeof(server_password));
+
+  network_conn_stable_time = root["conn_stable_time"] | 30000;
+  network_reconnect_max_time = root["reconnect_max_time"] | 300000;
+  network_watchdog_time = root["watchdog_time"] | 3600000;
+  server_port = root["port"];
+  server_tls_enabled = root["tls"];
+  server_tls_verify = root["tls_verify"];
+
+  memset(server_fingerprint1, 0, sizeof(server_fingerprint1));
+  memset(server_fingerprint2, 0, sizeof(server_fingerprint2));
+  decode_hex(root["tls_fingerprint1"].as<String>().c_str(),
+             server_fingerprint1, sizeof(server_fingerprint1));
+  decode_hex(root["tls_fingerprint2"].as<String>().c_str(),
+             server_fingerprint2, sizeof(server_fingerprint2));
+
+  LoadOverrides();
+
+  Serial.println("AppConfig: net loaded");
+  return true;
+}
+
+bool AppConfig::LoadAppJson(const char *filename) {
+  File file = SPIFFS.open(filename, "r");
+  if (!file) {
+    Serial.println("AppConfig: app file not found");
     LoadOverrides();
     return false;
   }
@@ -63,17 +136,13 @@ bool AppConfig::LoadJson(const char *filename) {
   }
 
   root["name"].as<String>().toCharArray(name, sizeof(name));
-  root["server_host"].as<String>().toCharArray(server_host, sizeof(server_host));
-  root["server_password"].as<String>().toCharArray(server_password, sizeof(server_password));
-  root["ssid"].as<String>().toCharArray(ssid, sizeof(ssid));
-  root["wpa_password"].as<String>().toCharArray(wpa_password, sizeof(wpa_password));
 
   active_threshold = root["active_threshold"];
   adc_interval = root["adc_interval"];
   adc_multiplier = root["adc_multiplier"];
   dev = root["dev"];
+  events = root["events"] | false;
   idle_timeout = root["idle_timeout"];
-  net_watchdog_timeout = root["net_watchdog_timeout"];
   nfc_read_counter = root["nfc_read_counter"] | false;
   nfc_read_data = root["nfc_read_data"] | 0;
   nfc_read_sig = root["nfc_read_sig"] | false;
@@ -82,21 +151,11 @@ bool AppConfig::LoadJson(const char *filename) {
   nfc_5s_limit = root["nfc_5s_limit"] | 30;
   nfc_1m_limit = root["nfc_1m_limit"] | 60;
   reboot_enabled = root["reboot_enabled"];
-  server_port = root["server_port"];
-  server_tls_enabled = root["server_tls_enabled"];
-  server_tls_verify = root["server_tls_verify"];
   swap_buttons = root["swap_buttons"];
   token_query_timeout = root["token_query_timeout"];
 
-  memset(server_fingerprint1, 0, sizeof(server_fingerprint1));
-  memset(server_fingerprint2, 0, sizeof(server_fingerprint2));
-  decode_hex(root["server_fingerprint1"].as<String>().c_str(),
-             server_fingerprint1, sizeof(server_fingerprint1));
-  decode_hex(root["server_fingerprint2"].as<String>().c_str(),
-             server_fingerprint2, sizeof(server_fingerprint2));
-
   LoadOverrides();
 
-  Serial.println("AppConfig: loaded");
+  Serial.println("AppConfig: app loaded");
   return true;
 }
