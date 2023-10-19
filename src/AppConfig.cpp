@@ -13,32 +13,35 @@ AppConfig::AppConfig() {
 }
 
 void AppConfig::LoadDefaults() {
+  // wifi
+  strlcpy(ssid, "", sizeof(ssid));
+  strlcpy(wpa_password, "", sizeof(wpa_password));
+  // net
   strlcpy(name, "Unconfigured", sizeof(name));
   strlcpy(server_host, "", sizeof(server_host));
   strlcpy(server_password, "", sizeof(server_password));
-  strlcpy(ssid, "", sizeof(ssid));
-  strlcpy(wpa_password, "", sizeof(wpa_password));
-  active_threshold = 500;
-  adc_interval = 1000;
-  adc_multiplier = 1;
-  dev = false;
-  events = false;
-  idle_timeout = 600000;
   network_conn_stable_time = 30000;
   network_reconnect_max_time = 300000;
   network_watchdog_time = 3600000;
-  nfc_read_counter = false;
-  nfc_read_data = 0;
-  nfc_read_sig = false;
-  nfc_check_interval = 10000;
-  nfc_reset_interval = 1000;
-  nfc_5s_limit = 30;
-  nfc_1m_limit = 60;
-  quiet = false;
-  reboot_enabled = false;
   server_port = 13260;
   server_tls_enabled = false;
   server_tls_verify = false;
+  // app
+  active_threshold = 500;
+  adc_interval = 1000;
+  adc_multiplier = 67;
+  dev = false;
+  events = true;
+  idle_timeout = 600000;
+  nfc_1m_limit = 60;
+  nfc_5s_limit = 30;
+  nfc_check_interval = 10000;
+  nfc_read_counter = false;
+  nfc_read_data = 0;
+  nfc_read_sig = false;
+  nfc_reset_interval = 1000;
+  quiet = false;
+  reboot_enabled = false;
   swap_buttons = false;
   token_query_timeout = 1000;
 }
@@ -100,9 +103,9 @@ bool AppConfig::LoadNetJson(const char *filename) {
   network_conn_stable_time = root["conn_stable_time"] | 30000;
   network_reconnect_max_time = root["reconnect_max_time"] | 300000;
   network_watchdog_time = root["watchdog_time"] | 3600000;
-  server_port = root["port"];
-  server_tls_enabled = root["tls"];
-  server_tls_verify = root["tls_verify"];
+  server_port = root["port"] | 13260;
+  server_tls_enabled = root["tls"] | false;
+  server_tls_verify = root["tls_verify"] | false;
 
   memset(server_fingerprint1, 0, sizeof(server_fingerprint1));
   memset(server_fingerprint2, 0, sizeof(server_fingerprint2));
@@ -138,23 +141,23 @@ bool AppConfig::LoadAppJson(const char *filename) {
 
   root["name"].as<String>().toCharArray(name, sizeof(name));
 
-  active_threshold = root["active_threshold"];
-  adc_interval = root["adc_interval"];
-  adc_multiplier = root["adc_multiplier"];
-  dev = root["dev"];
-  events = root["events"] | false;
-  idle_timeout = root["idle_timeout"];
+  active_threshold = root["active_threshold"] | 500;
+  adc_interval = root["adc_interval"] | 1000;
+  adc_multiplier = root["adc_multiplier"] | 67;
+  dev = root["dev"] | false;
+  events = root["events"] | true;
+  idle_timeout = root["idle_timeout"] | 600000;
+  nfc_1m_limit = root["nfc_1m_limit"] | 60;
+  nfc_5s_limit = root["nfc_5s_limit"] | 30;
+  nfc_check_interval = root["nfc_check_interval"] | 10000;
   nfc_read_counter = root["nfc_read_counter"] | false;
   nfc_read_data = root["nfc_read_data"] | 0;
   nfc_read_sig = root["nfc_read_sig"] | false;
-  nfc_check_interval = root["nfc_check_interval"] | 10000;
   nfc_reset_interval = root["nfc_reset_interval"] | 1000;
-  nfc_5s_limit = root["nfc_5s_limit"] | 30;
-  nfc_1m_limit = root["nfc_1m_limit"] | 60;
   quiet = root["quiet"] | false;
-  reboot_enabled = root["reboot_enabled"];
-  swap_buttons = root["swap_buttons"];
-  token_query_timeout = root["token_query_timeout"];
+  reboot_enabled = root["reboot_enabled"] | false;
+  swap_buttons = root["swap_buttons"] | false;
+  token_query_timeout = root["token_query_timeout"] | 1000;
 
   LoadOverrides();
 
