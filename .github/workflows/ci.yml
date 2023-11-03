@@ -2,7 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
+    tags:
+      - v0.0.*
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -43,8 +46,13 @@ jobs:
     - name: Rename the artifact
       run: |
         mkdir firmware
-        cp .pio/build/esp12e/firmware.bin firmware/toolman-esp8266-${{env.TODAY}}-git-${{env.SHORT_SHA}}-${{env.BIN_MD5}}.bin
-        cp .pio/build/esp12e/firmware.elf firmware/toolman-esp8266-${{env.TODAY}}-git-${{env.SHORT_SHA}}-${{env.BIN_MD5}}.elf
+        if [ "${{github.ref_type}}" = "tag" ]; then
+          cp .pio/build/esp12e/firmware.bin firmware/toolman-esp8266-${{github.ref_name}}-${{env.BIN_MD5}}.bin
+          cp .pio/build/esp12e/firmware.elf firmware/toolman-esp8266-${{github.ref_name}}-${{env.BIN_MD5}}.elf
+        else
+          cp .pio/build/esp12e/firmware.bin firmware/toolman-esp8266-${{env.TODAY}}-git-${{env.SHORT_SHA}}-${{env.BIN_MD5}}.bin
+          cp .pio/build/esp12e/firmware.elf firmware/toolman-esp8266-${{env.TODAY}}-git-${{env.SHORT_SHA}}-${{env.BIN_MD5}}.elf
+        fi
     - uses: actions/upload-artifact@v3
       with:
         name: firmware
