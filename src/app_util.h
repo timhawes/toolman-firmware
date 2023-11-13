@@ -10,6 +10,9 @@
 int decode_hex(const char *hexstr, uint8_t *bytes, size_t max_len);
 String hexlify(uint8_t bytes[], uint8_t len);
 void i2c_scan();
+#ifdef ESP8266
+void fix_filenames();
+#endif
 
 class MilliClock
 {
