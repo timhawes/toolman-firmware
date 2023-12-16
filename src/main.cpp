@@ -575,6 +575,7 @@ void setup()
   Serial.println(ESP.getSketchMD5());
 
   Wire.begin(sda_pin, scl_pin);
+  buzzer.begin();
   display.begin();
   if (!SPIFFS.begin()) {
     Serial.println("SPIFFS.begin() failed");
