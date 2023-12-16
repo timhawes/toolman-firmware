@@ -73,6 +73,9 @@ unsigned long session_went_idle;
 bool status_updated = false;
 
 PowerReader power_reader;
+#ifdef LOOPMETRICS_ENABLED
+LoopMetrics loop_metrics;
+#endif
 
 buzzer_note network_tune[128];
 buzzer_note ascending[] = { {1000, 250}, {1500, 250}, {2000, 250}, {0, 0} };
@@ -468,6 +471,12 @@ void network_cmd_metrics_query(const JsonDocument &obj)
   reply["millis"] = millis();
   reply["nfc_reset_count"] = nfc.reset_count;
   reply["nfc_token_count"] = nfc.token_count;
+#ifdef LOOPMETRICS_ENABLED
+  reply["loop_delays"] = loop_metrics.over_limit_count;
+  reply["loop_average_interval"] = loop_metrics.average_interval;
+  reply["loop_last_interval"] = loop_metrics.last_interval;
+  reply["loop_max_interval"] = loop_metrics.getAndClearMaxInterval();
+#endif
   reply.shrinkToFit();
   net.sendJson(reply);
 }
@@ -737,5 +746,9 @@ void loop() {
       display.refresh();
     }
   }
+
+#ifdef LOOPMETRICS_ENABLED
+  loop_metrics.feed();
+#endif
 
 }

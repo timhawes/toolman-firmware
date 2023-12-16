@@ -117,3 +117,54 @@ unsigned long MilliClock::read()
     return running_time;
   }
 }
+
+#ifdef LOOPMETRICS_ENABLED
+LoopMetrics::LoopMetrics()
+{
+
+}
+
+void LoopMetrics::feed()
+{
+  static int counter = 0;
+  static unsigned long last_feed;
+  static bool ready = false;
+  static bool first = true;
+
+  if (first) {
+    last_feed = millis();
+    first = false;
+    return;
+  }
+
+  long interval = millis() - last_feed;
+  last_feed = millis();
+
+  counter++;
+  if (counter > samples) {
+    counter = samples;
+    ready = true;
+  }
+  average_interval = ((average_interval * (counter-1)) + interval) / counter;
+  last_interval = interval;
+  if (interval > max_interval) {
+    max_interval = interval;
+  }
+
+  if (ready) {
+    if (interval > average_interval * limit_multiplier) {
+      over_limit_count++;
+      Serial.print("loop time ");
+      Serial.print(interval, DEC);
+      Serial.println("ms!");
+    }
+  }
+}
+
+unsigned long LoopMetrics::getAndClearMaxInterval()
+{
+  unsigned long m = max_interval;
+  max_interval = last_interval;
+  return m;
+}
+#endif

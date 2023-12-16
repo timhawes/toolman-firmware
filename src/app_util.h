@@ -25,4 +25,20 @@ public:
   void reset();
 };
 
+#ifdef LOOPMETRICS_ENABLED
+class LoopMetrics
+{
+public:
+  LoopMetrics();
+  int samples = 100;
+  float limit_multiplier = 2;
+  float average_interval = 0;
+  unsigned long last_interval = 0;
+  unsigned long max_interval = 0;
+  unsigned long over_limit_count = 0;
+  void feed();
+  unsigned long getAndClearMaxInterval();
+};
+#endif
+
 #endif
