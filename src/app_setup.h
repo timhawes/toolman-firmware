@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2017-2019 Tim Hawes
+// SPDX-FileCopyrightText: 2017-2023 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -7,20 +7,18 @@
 
 #include <Arduino.h>
 #include <DNSServer.h>
-#include <ESP8266WebServer.h>
-
-#include "app_display.h"
+#include <WebServer.h>
 
 class SetupMode
 {
 private:
-  const char *_clientid;
-  const char *_setup_password;
-  ESP8266WebServer server;
+  const char *_ssid;
+  const char *_password;
+  WebServer server;
   void configRootHandler();
   void configUpdateHandler();
 public:
-  SetupMode(const char *clientid, const char *setup_password);
+  SetupMode(const char *ssid, const char *password);
   void run();
 };
 

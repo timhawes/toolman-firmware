@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2017-2019 Tim Hawes
+// SPDX-FileCopyrightText: 2017-2023 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -10,11 +10,11 @@ int decode_hex(const char *hexstr, uint8_t *bytes, size_t max_len)
   if (strlen(hexstr) % 2 != 0) {
     return 0;
   }
-  int bytelen = strlen(hexstr) / 2;
+  unsigned int bytelen = strlen(hexstr) / 2;
   if (bytelen > max_len) {
     return 0;
   }
-  for (int i=0; i<bytelen; i++) {
+  for (unsigned int i=0; i<bytelen; i++) {
     uint8_t ms = hexstr[i*2];
     uint8_t ls = hexstr[(i*2)+1];
     if (ms >= 'a') {
@@ -116,4 +116,53 @@ unsigned long MilliClock::read()
   } else {
     return running_time;
   }
+}
+
+LoopMetrics::LoopMetrics()
+{
+
+}
+
+void LoopMetrics::feed()
+{
+  static int counter = 0;
+  static unsigned long last_feed;
+  static bool ready = false;
+  static bool first = true;
+
+  if (first) {
+    last_feed = millis();
+    first = false;
+    return;
+  }
+
+  long interval = millis() - last_feed;
+  last_feed = millis();
+
+  counter++;
+  if (counter > samples) {
+    counter = samples;
+    ready = true;
+  }
+  average_interval = ((average_interval * (counter-1)) + interval) / counter;
+  last_interval = interval;
+  if (interval > max_interval) {
+    max_interval = interval;
+  }
+
+  if (ready) {
+    if (interval > average_interval * limit_multiplier) {
+      over_limit_count++;
+      Serial.print("loop time ");
+      Serial.print(interval, DEC);
+      Serial.println("ms!");
+    }
+  }
+}
+
+unsigned long LoopMetrics::getAndClearMaxInterval()
+{
+  unsigned long m = max_interval;
+  max_interval = last_interval;
+  return m;
 }

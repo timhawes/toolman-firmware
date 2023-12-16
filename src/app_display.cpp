@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2017-2020 Tim Hawes
+// SPDX-FileCopyrightText: 2017-2023 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -121,7 +121,7 @@ void Display::set_network(bool wifi_up, bool tcp_up, bool ready)
     // don't show network status on the "Restarting..." screen
     return;
   }
-  
+
   _lcd->setCursor(8, 3);
   _lcd->write(5);
   _lcd->write(6);
@@ -240,10 +240,9 @@ void Display::restart_warning()
 void Display::setup_mode(const char *ssid)
 {
   _lcd->clear();
-  _lcd->setCursor(0, 1);
-  _lcd->print(" Setup Mode");
-  _lcd->setCursor(0, 2);
-  _lcd->print(" SSID: ");
+  _lcd->setCursor(3, 1);
+  _lcd->print("Setup Mode");
+  _lcd->setCursor(3, 2);
   _lcd->print(ssid);
   restarting = true;
 }

@@ -1,9 +1,11 @@
-// SPDX-FileCopyrightText: 2018 Tim Hawes
+// SPDX-FileCopyrightText: 2018-2023 Tim Hawes
 //
 // SPDX-License-Identifier: MIT
 
 #include "tokendb.hpp"
 #include "app_util.h"
+#include "MD5Builder.h"
+#include "SPIFFS.h"
 
 TokenDB::TokenDB(const char *filename)
 {
@@ -32,8 +34,8 @@ bool TokenDB::query_v1(File file, uint8_t uidlen, uint8_t *uid) {
 }
 
 bool TokenDB::query_v2(File file, uint8_t uidlen, uint8_t *uid) {
-  size_t hash_bytes = file.read();
-  size_t salt_length = file.read();
+  int hash_bytes = file.read();
+  int salt_length = file.read();
   char salt[salt_length+1];
 
   if (salt_length > 0) {
@@ -83,6 +85,28 @@ bool TokenDB::query_v2(File file, uint8_t uidlen, uint8_t *uid) {
   return false;
 }
 
+bool TokenDB::query_v3(File file, uint8_t uidlen, uint8_t *uid) {
+  while (file.available()) {
+    uint8_t xuidlen = file.read();
+    uint8_t xuid[xuidlen];
+    file.readBytes((char*)xuid, xuidlen);
+    uint8_t user_length = file.read();
+    char new_user[user_length+1];
+    file.readBytes(new_user, user_length);
+    if ((xuidlen == uidlen) && (memcmp(xuid, uid, xuidlen) == 0)) {
+      Serial.println("TokenDB: v3 access-granted");
+      file.close();
+      access_level = 1;
+      user = new_user;
+      return true;
+    }
+  }
+
+  Serial.println("TokenDB: v3 not-found");
+  file.close();
+  return false;
+}
+
 bool TokenDB::lookup(uint8_t uidlen, uint8_t *uidbytes)
 {
   //Serial.print("looking for ");
@@ -110,6 +134,9 @@ bool TokenDB::lookup(uint8_t uidlen, uint8_t *uidbytes)
           break;
         case 2:
           return query_v2(tokens_file, uidlen, uidbytes);
+          break;
+        case 3:
+          return query_v3(tokens_file, uidlen, uidbytes);
           break;
         default:
           Serial.print("TokenDB: unknown version ");
