@@ -109,7 +109,7 @@ void send_state()
   StaticJsonDocument<JSON_OBJECT_SIZE(7)> obj;
   obj["cmd"] = "state_info";
   obj["state"] = state;
-  obj["user"] = user_name;
+  obj["user"] = (const char*)user_name;
   obj["milliamps"] = device_milliamps;
   obj["milliamps_simple"] = device_milliamps_simple;
   obj["active_time"] = active_time;
