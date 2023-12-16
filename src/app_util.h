@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2017-2019 Tim Hawes
+// SPDX-FileCopyrightText: 2017-2023 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -25,7 +25,6 @@ public:
   void reset();
 };
 
-#ifdef LOOPMETRICS_ENABLED
 class LoopMetrics
 {
 public:
@@ -39,6 +38,5 @@ public:
   void feed();
   unsigned long getAndClearMaxInterval();
 };
-#endif
 
 #endif

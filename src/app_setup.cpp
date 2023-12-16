@@ -4,6 +4,7 @@
 
 #include "app_setup.h"
 #include <FS.h>
+#include <SPIFFS.h>
 #include <ArduinoJson.h>
 
 static const char html[] PROGMEM =
@@ -38,7 +39,7 @@ void SetupMode::configUpdateHandler() {
     if (server.argName(i) == "ssid") root["ssid"] = server.arg(i);
     if (server.argName(i) == "wpa_password") root["password"] = server.arg(i);
   }
-  file = SPIFFS.open(WIFI_JSON_FILENAME, "w");
+  file = SPIFFS.open("/wifi.json", "w");
   serializeJson(root, file);
   file.close();
 
@@ -54,7 +55,7 @@ void SetupMode::configUpdateHandler() {
     }
     if (server.argName(i) == "server_password") root["password"] = server.arg(i);
   }
-  file = SPIFFS.open(NET_JSON_FILENAME, "w");
+  file = SPIFFS.open("/net.json", "w");
   serializeJson(root, file);
   file.close();
 

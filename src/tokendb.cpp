@@ -4,6 +4,8 @@
 
 #include "tokendb.hpp"
 #include "app_util.h"
+#include "MD5Builder.h"
+#include "SPIFFS.h"
 
 TokenDB::TokenDB(const char *filename)
 {

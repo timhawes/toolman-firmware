@@ -5,8 +5,9 @@
 #include "config.h"
 
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
+#include <WiFi.h>
 #include <FS.h>
+#include <SPIFFS.h>
 
 #include <ArduinoJson.h>
 #include <Buzzer.hpp>
@@ -22,17 +23,30 @@
 #include "app_util.h"
 #include "tokendb.hpp"
 
-const uint8_t buzzer_pin = 15;
-const uint8_t sda_pin = 13;
-const uint8_t scl_pin = 12;
-const uint8_t relay_pin = 14;
-const uint8_t pn532_reset_pin = 2;
+#if defined(ARDUINO_LOLIN_S2_MINI)
+const uint8_t buzzer_pin = 12;
+const uint8_t sda_pin = 11;
+const uint8_t scl_pin = 9;
+const uint8_t relay_pin = 7;
+const uint8_t pn532_reset_pin = 16;
 const uint8_t flash_pin = 0;
-const uint8_t button_a_pin = 4;
-const uint8_t button_b_pin = 5;
+const uint8_t button_a_pin = 35;
+const uint8_t button_b_pin = 33;
+#elif defined(ARDUINO_LOLIN_S3_MINI)
+const uint8_t buzzer_pin = 10;
+const uint8_t sda_pin = 11;
+const uint8_t scl_pin = 13;
+const uint8_t relay_pin = 12;
+const uint8_t pn532_reset_pin = 16;
+const uint8_t flash_pin = 0;
+const uint8_t button_a_pin = 36;
+const uint8_t button_b_pin = 35;
+#else
+#error Unsupported board
+#endif
 
 char clientid[15];
-char hostname[25];
+char setup_ssid[25];
 
 // config
 AppConfig config;
@@ -60,8 +74,6 @@ bool device_active = false; // the current sensor is registering a load
 unsigned int device_milliamps = 0;
 unsigned int device_milliamps_simple = 0;
 
-WiFiEventHandler wifiEventConnectHandler;
-WiFiEventHandler wifiEventDisconnectHandler;
 bool wifi_connected = false;
 bool network_connected = false;
 
@@ -75,9 +87,7 @@ unsigned long session_went_idle;
 bool status_updated = false;
 
 PowerReader power_reader;
-#ifdef LOOPMETRICS_ENABLED
 LoopMetrics loop_metrics;
-#endif
 
 buzzer_note network_tune[128];
 buzzer_note ascending[] = { {1000, 250}, {1500, 250}, {2000, 250}, {0, 0} };
@@ -160,7 +170,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
     return;
   }
 
-  TokenDB tokendb(TOKENS_FILENAME);
+  TokenDB tokendb("/tokens.dat");
   if (tokendb.lookup(uid)) {
     if (tokendb.get_access_level() > 0) {
       strncpy(user_name, tokendb.get_user().c_str(), sizeof(user_name));
@@ -233,7 +243,7 @@ void token_present(NFCToken token)
   }
 
   strncpy(pending_token, token.uidString().c_str(), sizeof(pending_token));
-  token_lookup_timer.once_ms(config.token_query_timeout, std::bind(&token_info_callback, pending_token, false, "", 0));
+  token_lookup_timer.once_ms(config.token_query_timeout, []() { token_info_callback(pending_token, false, "", 0); });
 
   pending_token_time = millis();
   obj.shrinkToFit();
@@ -302,10 +312,10 @@ void button_callback(uint8_t button, bool state)
       // flash button
       if (state) {
         Serial.println("flash button pressed, going into setup mode");
-        display.setup_mode(hostname);
+        display.setup_mode(setup_ssid);
         net.stop();
-        delay(1000);
-        SetupMode setup_mode(hostname, SETUP_PASSWORD);
+        delay(500);
+        SetupMode setup_mode(setup_ssid, setup_password);
         setup_mode.run();
       }
       break;
@@ -340,13 +350,13 @@ void button_callback(uint8_t button, bool state)
   }
 }
 
-void wifi_connect_callback(const WiFiEventStationModeGotIP& event)
+void wifi_connect_callback(WiFiEvent_t event)
 {
   wifi_connected = true;
   display.set_network(wifi_connected, network_connected, network_connected);
 }
 
-void wifi_disconnect_callback(const WiFiEventStationModeDisconnected& event)
+void wifi_disconnect_callback(WiFiEvent_t event)
 {
   wifi_connected = false;
   display.set_network(wifi_connected, network_connected, network_connected);
@@ -390,13 +400,13 @@ void network_transfer_status_callback(const char *filename, int progress, bool a
       display.firmware_progress(progress);
     }
   }
-  if (changed && strcmp(WIFI_JSON_FILENAME, filename) == 0) {
+  if (changed && strcmp("/wifi.json", filename) == 0) {
     load_wifi_config();
   }
-  if (changed && strcmp(NET_JSON_FILENAME, filename) == 0) {
+  if (changed && strcmp("/net.json", filename) == 0) {
     load_net_config();
   }
-  if (changed && strcmp(APP_JSON_FILENAME, filename) == 0) {
+  if (changed && strcmp("/app.json", filename) == 0) {
     load_app_config();
   }
 }
@@ -473,12 +483,10 @@ void network_cmd_metrics_query(const JsonDocument &obj)
   reply["millis"] = millis();
   reply["nfc_reset_count"] = nfc.reset_count;
   reply["nfc_token_count"] = nfc.token_count;
-#ifdef LOOPMETRICS_ENABLED
   reply["loop_delays"] = loop_metrics.over_limit_count;
   reply["loop_average_interval"] = loop_metrics.average_interval;
   reply["loop_last_interval"] = loop_metrics.last_interval;
   reply["loop_max_interval"] = loop_metrics.getAndClearMaxInterval();
-#endif
   reply.shrinkToFit();
   net.sendJson(reply);
 }
@@ -562,45 +570,43 @@ void setup()
   pinMode(relay_pin, OUTPUT);
   pinMode(button_a_pin, INPUT_PULLUP);
   pinMode(button_b_pin, INPUT_PULLUP);
-  pinMode(flash_pin, INPUT);
+  pinMode(flash_pin, INPUT_PULLUP);
 
   digitalWrite(buzzer_pin, LOW);
   digitalWrite(pn532_reset_pin, HIGH);
   digitalWrite(relay_pin, LOW);
 
-  snprintf(clientid, sizeof(clientid), "%06x", ESP.getChipId());
-  snprintf(hostname, sizeof(hostname), "toolman-%06x", ESP.getChipId());
-  wifi_set_sleep_type(NONE_SLEEP_T);
-  WiFi.hostname(hostname);
+  uint8_t m[6] = {};
+  esp_efuse_mac_get_default(m);
+  snprintf(clientid, sizeof(clientid), "%02x%02x%02x", m[3], m[4], m[5]);
+  snprintf(setup_ssid, sizeof(setup_ssid), "toolman-%02x%02x%02x", m[3], m[4], m[5]);
+  WiFi.hostname(setup_ssid);
 
-  wifiEventConnectHandler = WiFi.onStationModeGotIP(wifi_connect_callback);
-  wifiEventDisconnectHandler = WiFi.onStationModeDisconnected(wifi_disconnect_callback);
+  WiFi.onEvent(wifi_connect_callback, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
+  WiFi.onEvent(wifi_disconnect_callback, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 
-  Serial.begin(115200);
-  for (int i=0; i<1024; i++) {
-    Serial.print(" \b");
-  }
+  Serial.begin();
+  Serial.setDebugOutput(false);
   Serial.println();
-
-  Serial.print(hostname);
+  Serial.print(clientid);
   Serial.print(" ");
   Serial.println(ESP.getSketchMD5());
 
   Wire.begin(sda_pin, scl_pin);
   buzzer.begin();
   display.begin();
-  if (!SPIFFS.begin()) {
+  if (!SPIFFS.begin(true)) {
     Serial.println("SPIFFS.begin() failed");
   }
 
-  if (SPIFFS.exists(WIFI_JSON_FILENAME) && SPIFFS.exists(NET_JSON_FILENAME)) {
+  if (SPIFFS.exists("/wifi.json") && SPIFFS.exists("/net.json")) {
     load_config();
   } else {
     Serial.println("config is missing, entering setup mode");
-    display.setup_mode(hostname);
+    display.setup_mode(setup_ssid);
     net.stop();
     delay(1000);
-    SetupMode setup_mode(hostname, SETUP_PASSWORD);
+    SetupMode setup_mode(setup_ssid, setup_password);
     setup_mode.run();
     ESP.restart();
   }
@@ -616,6 +622,8 @@ void setup()
   net.onRestartRequest(network_restart_callback);
   net.onReceiveJson(network_message_callback);
   net.onTransferStatus(network_transfer_status_callback);
+  net.setKeepalive(35000);
+  net.begin();
   net.start();
 
   ui.begin();
@@ -729,8 +737,6 @@ void loop() {
     }
   }
 
-#ifdef LOOPMETRICS_ENABLED
   loop_metrics.feed();
-#endif
 
 }

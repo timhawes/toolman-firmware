@@ -17,14 +17,14 @@ class AppConfig {
   // net
   bool server_tls_enabled;
   bool server_tls_verify;
+  char server_fingerprint1[65];
+  char server_fingerprint2[65];
   char server_host[64];
   char server_password[64];
   int network_conn_stable_time;
   int network_reconnect_max_time;
   int network_watchdog_time;
   int server_port;
-  uint8_t server_fingerprint1[21];
-  uint8_t server_fingerprint2[21];
   // app
   bool dev;
   bool events;
@@ -36,18 +36,18 @@ class AppConfig {
   char name[21];
   int active_threshold;
   int adc_multiplier;
-  int nfc_1m_limit;
-  int nfc_5s_limit;
-  int nfc_check_interval;
+  int nfc_1m_limit = 60;
+  int nfc_5s_limit = 30;
+  int nfc_check_interval = 10000;
   int nfc_read_data;
-  int nfc_reset_interval;
+  int nfc_reset_interval = 1000;
   long adc_interval;
   long idle_timeout;
   long token_query_timeout;
   void LoadDefaults();
-  bool LoadWifiJson(const char *filename = WIFI_JSON_FILENAME);
-  bool LoadNetJson(const char *filename = NET_JSON_FILENAME);
-  bool LoadAppJson(const char *filename = APP_JSON_FILENAME);
+  bool LoadWifiJson(const char *filename = "/wifi.json");
+  bool LoadNetJson(const char *filename = "/net.json");
+  bool LoadAppJson(const char *filename = "/app.json");
   void LoadOverrides();
 };
 

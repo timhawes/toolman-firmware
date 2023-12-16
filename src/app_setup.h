@@ -7,15 +7,14 @@
 
 #include <Arduino.h>
 #include <DNSServer.h>
-#include <ESP8266WebServer.h>
-#include "config.h"
+#include <WebServer.h>
 
 class SetupMode
 {
 private:
   const char *_ssid;
   const char *_password;
-  ESP8266WebServer server;
+  WebServer server;
   void configRootHandler();
   void configUpdateHandler();
 public:

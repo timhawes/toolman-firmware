@@ -5,7 +5,7 @@
 #include "AppConfig.hpp"
 #include <ArduinoJson.h>
 #include <FS.h>
-#include "app_util.h"
+#include "SPIFFS.h"
 
 AppConfig::AppConfig() {
   LoadDefaults();
@@ -99,6 +99,8 @@ bool AppConfig::LoadNetJson(const char *filename) {
 
   root["host"].as<String>().toCharArray(server_host, sizeof(server_host));
   root["password"].as<String>().toCharArray(server_password, sizeof(server_password));
+  root["tls_fingerprint1"].as<String>().toCharArray(server_fingerprint1, sizeof(server_fingerprint1));
+  root["tls_fingerprint2"].as<String>().toCharArray(server_fingerprint2, sizeof(server_fingerprint2));
 
   network_conn_stable_time = root["conn_stable_time"] | 30000;
   network_reconnect_max_time = root["reconnect_max_time"] | 300000;
@@ -106,13 +108,6 @@ bool AppConfig::LoadNetJson(const char *filename) {
   server_port = root["port"] | 13260;
   server_tls_enabled = root["tls"] | false;
   server_tls_verify = root["tls_verify"] | false;
-
-  memset(server_fingerprint1, 0, sizeof(server_fingerprint1));
-  memset(server_fingerprint2, 0, sizeof(server_fingerprint2));
-  decode_hex(root["tls_fingerprint1"].as<String>().c_str(),
-             server_fingerprint1, sizeof(server_fingerprint1));
-  decode_hex(root["tls_fingerprint2"].as<String>().c_str(),
-             server_fingerprint2, sizeof(server_fingerprint2));
 
   LoadOverrides();
 
