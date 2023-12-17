@@ -17,8 +17,8 @@ class AppConfig {
   // net
   bool server_tls_enabled;
   bool server_tls_verify;
-  char server_fingerprint1[65];
-  char server_fingerprint2[65];
+  char server_sha256_fingerprint1[65];
+  char server_sha256_fingerprint2[65];
   char server_host[64];
   char server_password[64];
   int network_conn_stable_time;

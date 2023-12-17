@@ -270,7 +270,7 @@ void load_net_config()
   config.LoadNetJson();
   net.setServer(config.server_host, config.server_port,
                 config.server_tls_enabled, config.server_tls_verify,
-                config.server_fingerprint1, config.server_fingerprint2);
+                config.server_sha256_fingerprint1, config.server_sha256_fingerprint2);
   net.setCred(clientid, config.server_password);
   net.setDebug(config.dev);
   net.setConnectionStableTime(config.network_conn_stable_time);
