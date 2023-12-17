@@ -591,6 +591,7 @@ void setup()
   Serial.begin();
   Serial.setDebugOutput(false);
   Serial.println();
+  Serial.print("toolman-");
   Serial.print(clientid);
   Serial.print(" ");
   Serial.println(ESP.getSketchMD5());
