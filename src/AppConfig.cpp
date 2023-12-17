@@ -99,8 +99,8 @@ bool AppConfig::LoadNetJson(const char *filename) {
 
   root["host"].as<String>().toCharArray(server_host, sizeof(server_host));
   root["password"].as<String>().toCharArray(server_password, sizeof(server_password));
-  root["tls_fingerprint1"].as<String>().toCharArray(server_fingerprint1, sizeof(server_fingerprint1));
-  root["tls_fingerprint2"].as<String>().toCharArray(server_fingerprint2, sizeof(server_fingerprint2));
+  root["tls_sha256_fingerprint1"].as<String>().toCharArray(server_sha256_fingerprint1, sizeof(server_sha256_fingerprint1));
+  root["tls_sha256_fingerprint2"].as<String>().toCharArray(server_sha256_fingerprint2, sizeof(server_sha256_fingerprint2));
 
   network_conn_stable_time = root["conn_stable_time"] | 30000;
   network_reconnect_max_time = root["reconnect_max_time"] | 300000;

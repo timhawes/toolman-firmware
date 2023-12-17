@@ -50,7 +50,7 @@ void SetupMode::configUpdateHandler() {
     if (server.argName(i) == "server_port") root["port"] = server.arg(i).toInt();
     if (server.argName(i) == "server_tls_enabled") root["tls"] = (bool)server.arg(i).toInt();
     if (server.argName(i) == "server_tls_fingerprint" && !server.arg(i).isEmpty()) {
-      root["tls_fingerprint1"] = server.arg(i);
+      root["tls_sha256_fingerprint1"] = server.arg(i);
       root["tls_verify"] = true;
     }
     if (server.argName(i) == "server_password") root["password"] = server.arg(i);
