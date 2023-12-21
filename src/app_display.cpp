@@ -240,10 +240,9 @@ void Display::restart_warning()
 void Display::setup_mode(const char *ssid)
 {
   _lcd->clear();
-  _lcd->setCursor(0, 1);
-  _lcd->print(" Setup Mode");
-  _lcd->setCursor(0, 2);
-  _lcd->print(" SSID: ");
+  _lcd->setCursor(3, 1);
+  _lcd->print("Setup Mode");
+  _lcd->setCursor(3, 2);
   _lcd->print(ssid);
   restarting = true;
 }

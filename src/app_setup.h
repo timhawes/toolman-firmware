@@ -8,17 +8,18 @@
 #include <Arduino.h>
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
+#include "config.h"
 
 class SetupMode
 {
 private:
-  const char *_clientid;
-  const char *_setup_password;
+  const char *_ssid;
+  const char *_password;
   ESP8266WebServer server;
   void configRootHandler();
   void configUpdateHandler();
 public:
-  SetupMode(const char *clientid, const char *setup_password);
+  SetupMode(const char *ssid, const char *password);
   void run();
 };
 

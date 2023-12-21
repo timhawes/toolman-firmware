@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "config.h"
+
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <FS.h>
@@ -18,7 +20,6 @@
 #include "app_setup.h"
 #include "app_ui.h"
 #include "app_util.h"
-#include "config.h"
 #include "tokendb.hpp"
 
 const uint8_t buzzer_pin = 15;
@@ -31,6 +32,7 @@ const uint8_t button_a_pin = 4;
 const uint8_t button_b_pin = 5;
 
 char clientid[15];
+char hostname[25];
 
 // config
 AppConfig config;
@@ -158,7 +160,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
     return;
   }
 
-  TokenDB tokendb("tokens.dat");
+  TokenDB tokendb(TOKENS_FILENAME);
   if (tokendb.lookup(uid)) {
     if (tokendb.get_access_level() > 0) {
       strncpy(user_name, tokendb.get_user().c_str(), sizeof(user_name));
@@ -300,10 +302,10 @@ void button_callback(uint8_t button, bool state)
       // flash button
       if (state) {
         Serial.println("flash button pressed, going into setup mode");
-        display.setup_mode(clientid);
+        display.setup_mode(hostname);
         net.stop();
         delay(1000);
-        SetupMode setup_mode(clientid, setup_password);
+        SetupMode setup_mode(hostname, SETUP_PASSWORD);
         setup_mode.run();
       }
       break;
@@ -366,7 +368,7 @@ void network_restart_callback(bool immediate, bool firmware)
 {
   if (immediate) {
     display.restart_warning();
-    ESP.reset();
+    ESP.restart();
     delay(5000);
   }
   if (firmware) {
@@ -388,13 +390,13 @@ void network_transfer_status_callback(const char *filename, int progress, bool a
       display.firmware_progress(progress);
     }
   }
-  if (changed && strcmp("wifi.json", filename) == 0) {
+  if (changed && strcmp(WIFI_JSON_FILENAME, filename) == 0) {
     load_wifi_config();
   }
-  if (changed && strcmp("net.json", filename) == 0) {
+  if (changed && strcmp(NET_JSON_FILENAME, filename) == 0) {
     load_net_config();
   }
-  if (changed && strcmp("app.json", filename) == 0) {
+  if (changed && strcmp(APP_JSON_FILENAME, filename) == 0) {
     load_app_config();
   }
 }
@@ -566,9 +568,10 @@ void setup()
   digitalWrite(pn532_reset_pin, HIGH);
   digitalWrite(relay_pin, LOW);
 
-  snprintf(clientid, sizeof(clientid), "toolman-%06x", ESP.getChipId());
+  snprintf(clientid, sizeof(clientid), "%06x", ESP.getChipId());
+  snprintf(hostname, sizeof(hostname), "toolman-%06x", ESP.getChipId());
   wifi_set_sleep_type(NONE_SLEEP_T);
-  WiFi.hostname(String(clientid));
+  WiFi.hostname(hostname);
 
   wifiEventConnectHandler = WiFi.onStationModeGotIP(wifi_connect_callback);
   wifiEventDisconnectHandler = WiFi.onStationModeDisconnected(wifi_disconnect_callback);
@@ -579,7 +582,7 @@ void setup()
   }
   Serial.println();
 
-  Serial.print(clientid);
+  Serial.print(hostname);
   Serial.print(" ");
   Serial.println(ESP.getSketchMD5());
 
@@ -590,14 +593,14 @@ void setup()
     Serial.println("SPIFFS.begin() failed");
   }
 
-  if (SPIFFS.exists("wifi.json") && SPIFFS.exists("net.json")) {
+  if (SPIFFS.exists(WIFI_JSON_FILENAME) && SPIFFS.exists(NET_JSON_FILENAME)) {
     load_config();
   } else {
     Serial.println("config is missing, entering setup mode");
-    display.setup_mode(clientid);
+    display.setup_mode(hostname);
     net.stop();
     delay(1000);
-    SetupMode setup_mode(clientid, setup_password);
+    SetupMode setup_mode(hostname, SETUP_PASSWORD);
     setup_mode.run();
     ESP.restart();
   }
@@ -613,7 +616,6 @@ void setup()
   net.onRestartRequest(network_restart_callback);
   net.onReceiveJson(network_message_callback);
   net.onTransferStatus(network_transfer_status_callback);
-  net.setCommandKey("cmd");
   net.start();
 
   ui.begin();
@@ -677,27 +679,11 @@ void loop() {
     display.draw_clocks();
   }
 
-  yield();
-
   nfc.loop();
-
-  yield();
-
   display.loop();
-
-  yield();
-
   ui.loop();
-
-  yield();
-
   adc_loop();
-
-  yield();
-
   net.loop();
-
-  yield();
 
   if (device_enabled == true && device_active == false && config.idle_timeout != 0) {
     if ((long)(millis() - session_went_idle) > config.idle_timeout) {
@@ -713,13 +699,9 @@ void loop() {
     device_relay = false;
   }
 
-  yield();
-
   if (status_updated) {
     send_state();
   }
-
-  yield();
 
   if (firmware_restart_pending) {
     if (system_is_idle()) {

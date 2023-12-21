@@ -6,6 +6,7 @@
 #define APPCONFIG_HPP
 
 #include <Arduino.h>
+#include "config.h"
 
 class AppConfig {
  public:
@@ -44,9 +45,9 @@ class AppConfig {
   long idle_timeout;
   long token_query_timeout;
   void LoadDefaults();
-  bool LoadWifiJson(const char *filename = "wifi.json");
-  bool LoadNetJson(const char *filename = "net.json");
-  bool LoadAppJson(const char *filename = "app.json");
+  bool LoadWifiJson(const char *filename = WIFI_JSON_FILENAME);
+  bool LoadNetJson(const char *filename = NET_JSON_FILENAME);
+  bool LoadAppJson(const char *filename = APP_JSON_FILENAME);
   void LoadOverrides();
 };
 
