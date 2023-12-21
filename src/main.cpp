@@ -46,7 +46,7 @@ const uint8_t button_b_pin = 35;
 #endif
 
 char clientid[15];
-char setup_ssid[25];
+char hostname[25];
 
 // config
 AppConfig config;
@@ -172,7 +172,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
     return;
   }
 
-  TokenDB tokendb("/tokens.dat");
+  TokenDB tokendb(TOKENS_FILENAME);
   if (tokendb.lookup(uid)) {
     if (tokendb.get_access_level() > 0) {
       strncpy(user_name, tokendb.get_user().c_str(), sizeof(user_name));
@@ -314,10 +314,10 @@ void button_callback(uint8_t button, bool state)
       // flash button
       if (state) {
         Serial.println("flash button pressed, going into setup mode");
-        display.setup_mode(setup_ssid);
+        display.setup_mode(hostname);
         net.stop();
         delay(500);
-        SetupMode setup_mode(setup_ssid, setup_password);
+        SetupMode setup_mode(hostname, SETUP_PASSWORD);
         setup_mode.run();
       }
       break;
@@ -402,13 +402,13 @@ void network_transfer_status_callback(const char *filename, int progress, bool a
       display.firmware_progress(progress);
     }
   }
-  if (changed && strcmp("/wifi.json", filename) == 0) {
+  if (changed && strcmp(WIFI_JSON_FILENAME, filename) == 0) {
     load_wifi_config();
   }
-  if (changed && strcmp("/net.json", filename) == 0) {
+  if (changed && strcmp(NET_JSON_FILENAME, filename) == 0) {
     load_net_config();
   }
-  if (changed && strcmp("/app.json", filename) == 0) {
+  if (changed && strcmp(APP_JSON_FILENAME, filename) == 0) {
     load_app_config();
   }
 }
@@ -583,8 +583,8 @@ void setup()
   uint8_t m[6] = {};
   esp_efuse_mac_get_default(m);
   snprintf(clientid, sizeof(clientid), "%02x%02x%02x", m[3], m[4], m[5]);
-  snprintf(setup_ssid, sizeof(setup_ssid), "toolman-%02x%02x%02x", m[3], m[4], m[5]);
-  WiFi.hostname(setup_ssid);
+  snprintf(hostname, sizeof(hostname), "toolman-%02x%02x%02x", m[3], m[4], m[5]);
+  WiFi.hostname(hostname);
 
   WiFi.onEvent(wifi_connect_callback, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
   WiFi.onEvent(wifi_disconnect_callback, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
@@ -592,8 +592,7 @@ void setup()
   Serial.begin();
   Serial.setDebugOutput(false);
   Serial.println();
-  Serial.print("toolman-");
-  Serial.print(clientid);
+  Serial.print(hostname);
   Serial.print(" ");
   Serial.println(ESP.getSketchMD5());
 
@@ -604,14 +603,14 @@ void setup()
     Serial.println("SPIFFS.begin() failed");
   }
 
-  if (SPIFFS.exists("/wifi.json") && SPIFFS.exists("/net.json")) {
+  if (SPIFFS.exists(WIFI_JSON_FILENAME) && SPIFFS.exists(NET_JSON_FILENAME)) {
     load_config();
   } else {
     Serial.println("config is missing, entering setup mode");
-    display.setup_mode(setup_ssid);
+    display.setup_mode(hostname);
     net.stop();
     delay(1000);
-    SetupMode setup_mode(setup_ssid, setup_password);
+    SetupMode setup_mode(hostname, SETUP_PASSWORD);
     setup_mode.run();
     ESP.restart();
   }

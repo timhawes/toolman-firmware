@@ -39,7 +39,7 @@ void SetupMode::configUpdateHandler() {
     if (server.argName(i) == "ssid") root["ssid"] = server.arg(i);
     if (server.argName(i) == "wpa_password") root["password"] = server.arg(i);
   }
-  file = SPIFFS.open("/wifi.json", "w");
+  file = SPIFFS.open(WIFI_JSON_FILENAME, "w");
   serializeJson(root, file);
   file.close();
 
@@ -55,7 +55,7 @@ void SetupMode::configUpdateHandler() {
     }
     if (server.argName(i) == "server_password") root["password"] = server.arg(i);
   }
-  file = SPIFFS.open("/net.json", "w");
+  file = SPIFFS.open(NET_JSON_FILENAME, "w");
   serializeJson(root, file);
   file.close();
 

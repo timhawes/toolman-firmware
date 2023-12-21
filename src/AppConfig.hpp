@@ -36,18 +36,18 @@ class AppConfig {
   char name[21];
   int active_threshold;
   int adc_multiplier;
-  int nfc_1m_limit = 60;
-  int nfc_5s_limit = 30;
-  int nfc_check_interval = 10000;
+  int nfc_1m_limit;
+  int nfc_5s_limit;
+  int nfc_check_interval;
   int nfc_read_data;
-  int nfc_reset_interval = 1000;
+  int nfc_reset_interval;
   long adc_interval;
   long idle_timeout;
   long token_query_timeout;
   void LoadDefaults();
-  bool LoadWifiJson(const char *filename = "/wifi.json");
-  bool LoadNetJson(const char *filename = "/net.json");
-  bool LoadAppJson(const char *filename = "/app.json");
+  bool LoadWifiJson(const char *filename = WIFI_JSON_FILENAME);
+  bool LoadNetJson(const char *filename = NET_JSON_FILENAME);
+  bool LoadAppJson(const char *filename = APP_JSON_FILENAME);
   void LoadOverrides();
 };
 

@@ -8,6 +8,7 @@
 #include <Arduino.h>
 #include <DNSServer.h>
 #include <WebServer.h>
+#include "config.h"
 
 class SetupMode
 {
