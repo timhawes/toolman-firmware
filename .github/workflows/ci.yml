@@ -47,13 +47,15 @@ jobs:
       run: |
         mkdir firmware
         for variant in $(cd .pio/build && echo *); do
-          md5=$(md5sum .pio/build/$variant/firmware.bin | cut -d' ' -f1)
-          if [ "${{github.ref_type}}" = "tag" ]; then
-            cp .pio/build/$variant/firmware.bin firmware/toolman-${{github.ref_name}}-$variant-$md5.bin
-            cp .pio/build/$variant/firmware.elf firmware/toolman-${{github.ref_name}}-$variant-$md5.elf
-          elif [ "${{github.ref_type}}" = "branch" ]; then
-            cp .pio/build/$variant/firmware.bin firmware/toolman-${{env.TODAY}}-${{github.ref_name}}-${{env.SHORT_SHA}}-$variant-$md5.bin
-            cp .pio/build/$variant/firmware.elf firmware/toolman-${{env.TODAY}}-${{github.ref_name}}-${{env.SHORT_SHA}}-$variant-$md5.elf
+          if [ -d .pio/build/$variant ]; then
+            md5=$(md5sum .pio/build/$variant/firmware.bin | cut -d' ' -f1)
+            if [ "${{github.ref_type}}" = "tag" ]; then
+              cp .pio/build/$variant/firmware.bin firmware/toolman-${{github.ref_name}}-$variant-$md5.bin
+              cp .pio/build/$variant/firmware.elf firmware/toolman-${{github.ref_name}}-$variant-$md5.elf
+            elif [ "${{github.ref_type}}" = "branch" ]; then
+              cp .pio/build/$variant/firmware.bin firmware/toolman-${{env.TODAY}}-${{github.ref_name}}-${{env.SHORT_SHA}}-$variant-$md5.bin
+              cp .pio/build/$variant/firmware.elf firmware/toolman-${{env.TODAY}}-${{github.ref_name}}-${{env.SHORT_SHA}}-$variant-$md5.elf
+            fi
           fi
         done
     - uses: actions/upload-artifact@v3
