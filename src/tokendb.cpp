@@ -4,8 +4,10 @@
 
 #include "tokendb.hpp"
 #include "app_util.h"
+#ifdef ESP32
 #include "MD5Builder.h"
 #include "SPIFFS.h"
+#endif
 
 TokenDB::TokenDB(const char *filename)
 {

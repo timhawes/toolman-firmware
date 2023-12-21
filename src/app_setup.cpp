@@ -4,7 +4,9 @@
 
 #include "app_setup.h"
 #include <FS.h>
+#ifdef ESP32
 #include <SPIFFS.h>
+#endif
 #include <ArduinoJson.h>
 
 static const char html[] PROGMEM =
@@ -50,7 +52,11 @@ void SetupMode::configUpdateHandler() {
     if (server.argName(i) == "server_port") root["port"] = server.arg(i).toInt();
     if (server.argName(i) == "server_tls_enabled") root["tls"] = (bool)server.arg(i).toInt();
     if (server.argName(i) == "server_tls_fingerprint" && !server.arg(i).isEmpty()) {
+#ifdef ESP8266
+      root["tls_fingerprint1"] = server.arg(i);
+#else
       root["tls_sha256_fingerprint1"] = server.arg(i);
+#endif
       root["tls_verify"] = true;
     }
     if (server.argName(i) == "server_password") root["password"] = server.arg(i);
