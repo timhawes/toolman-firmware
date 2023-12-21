@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - multiarch
     tags:
       - v0.0.*
   pull_request:
@@ -38,21 +39,25 @@ jobs:
         pre-commit run --all-files
     - name: Build PlatformIO Project
       run: pio run
-    - name: Prepare variables to name the artifact
+    - name: Prepare variables to name the artifacts
       run: |
         echo "TODAY=$(date +'%Y%m%d')" >> $GITHUB_ENV
         echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-        echo "BIN_MD5=$(md5sum .pio/build/esp12e/firmware.bin | cut -d' ' -f1)" >>$GITHUB_ENV
-    - name: Rename the artifact
+    - name: Rename the artifacts
       run: |
         mkdir firmware
-        if [ "${{github.ref_type}}" = "tag" ]; then
-          cp .pio/build/esp12e/firmware.bin firmware/toolman-esp8266-${{github.ref_name}}-${{env.BIN_MD5}}.bin
-          cp .pio/build/esp12e/firmware.elf firmware/toolman-esp8266-${{github.ref_name}}-${{env.BIN_MD5}}.elf
-        else
-          cp .pio/build/esp12e/firmware.bin firmware/toolman-esp8266-${{env.TODAY}}-git-${{env.SHORT_SHA}}-${{env.BIN_MD5}}.bin
-          cp .pio/build/esp12e/firmware.elf firmware/toolman-esp8266-${{env.TODAY}}-git-${{env.SHORT_SHA}}-${{env.BIN_MD5}}.elf
-        fi
+        for variant in $(cd .pio/build && echo *); do
+          if [ -d .pio/build/$variant ]; then
+            md5=$(md5sum .pio/build/$variant/firmware.bin | cut -d' ' -f1)
+            if [ "${{github.ref_type}}" = "tag" ]; then
+              cp .pio/build/$variant/firmware.bin firmware/toolman-${{github.ref_name}}-$variant-$md5.bin
+              cp .pio/build/$variant/firmware.elf firmware/toolman-${{github.ref_name}}-$variant-$md5.elf
+            elif [ "${{github.ref_type}}" = "branch" ]; then
+              cp .pio/build/$variant/firmware.bin firmware/toolman-${{env.TODAY}}-${{github.ref_name}}-${{env.SHORT_SHA}}-$variant-$md5.bin
+              cp .pio/build/$variant/firmware.elf firmware/toolman-${{env.TODAY}}-${{github.ref_name}}-${{env.SHORT_SHA}}-$variant-$md5.elf
+            fi
+          fi
+        done
     - uses: actions/upload-artifact@v3
       with:
         name: firmware

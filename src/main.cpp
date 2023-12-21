@@ -5,8 +5,15 @@
 #include "config.h"
 
 #include <Arduino.h>
+#ifdef ESP8266
 #include <ESP8266WiFi.h>
+#else
+#include <WiFi.h>
+#endif
 #include <FS.h>
+#ifdef ESP32
+#include <SPIFFS.h>
+#endif
 
 #include <ArduinoJson.h>
 #include <Buzzer.hpp>
@@ -22,6 +29,7 @@
 #include "app_util.h"
 #include "tokendb.hpp"
 
+#ifdef ESP8266
 const uint8_t buzzer_pin = 15;
 const uint8_t sda_pin = 13;
 const uint8_t scl_pin = 12;
@@ -30,6 +38,27 @@ const uint8_t pn532_reset_pin = 2;
 const uint8_t flash_pin = 0;
 const uint8_t button_a_pin = 4;
 const uint8_t button_b_pin = 5;
+#endif
+#ifdef ARDUINO_LOLIN_S2_MINI
+const uint8_t buzzer_pin = 12;
+const uint8_t sda_pin = 11;
+const uint8_t scl_pin = 9;
+const uint8_t relay_pin = 7;
+const uint8_t pn532_reset_pin = 16;
+const uint8_t flash_pin = 0;
+const uint8_t button_a_pin = 35;
+const uint8_t button_b_pin = 33;
+#endif
+#ifdef ARDUINO_LOLIN_S3_MINI
+const uint8_t buzzer_pin = 10;
+const uint8_t sda_pin = 11;
+const uint8_t scl_pin = 13;
+const uint8_t relay_pin = 12;
+const uint8_t pn532_reset_pin = 16;
+const uint8_t flash_pin = 0;
+const uint8_t button_a_pin = 36;
+const uint8_t button_b_pin = 35;
+#endif
 
 char clientid[15];
 char hostname[25];
@@ -60,8 +89,10 @@ bool device_active = false; // the current sensor is registering a load
 unsigned int device_milliamps = 0;
 unsigned int device_milliamps_simple = 0;
 
+#ifdef ESP8266
 WiFiEventHandler wifiEventConnectHandler;
 WiFiEventHandler wifiEventDisconnectHandler;
+#endif
 bool wifi_connected = false;
 bool network_connected = false;
 
@@ -233,7 +264,11 @@ void token_present(NFCToken token)
   }
 
   strncpy(pending_token, token.uidString().c_str(), sizeof(pending_token));
+#ifdef ESP8266
   token_lookup_timer.once_ms(config.token_query_timeout, std::bind(&token_info_callback, pending_token, false, "", 0));
+#else
+  token_lookup_timer.once_ms(config.token_query_timeout, []() { token_info_callback(pending_token, false, "", 0); });
+#endif
 
   pending_token_time = millis();
   obj.shrinkToFit();
@@ -256,9 +291,15 @@ void load_wifi_config()
 void load_net_config()
 {
   config.LoadNetJson();
+#ifdef ESP8266
   net.setServer(config.server_host, config.server_port,
                 config.server_tls_enabled, config.server_tls_verify,
                 config.server_fingerprint1, config.server_fingerprint2);
+#else
+  net.setServer(config.server_host, config.server_port,
+                config.server_tls_enabled, config.server_tls_verify,
+                config.server_sha256_fingerprint1, config.server_sha256_fingerprint2);
+#endif
   net.setCred(clientid, config.server_password);
   net.setDebug(config.dev);
   net.setConnectionStableTime(config.network_conn_stable_time);
@@ -304,7 +345,11 @@ void button_callback(uint8_t button, bool state)
         Serial.println("flash button pressed, going into setup mode");
         display.setup_mode(hostname);
         net.stop();
+#ifdef ESP8266
         delay(1000);
+#else
+        delay(500);
+#endif
         SetupMode setup_mode(hostname, SETUP_PASSWORD);
         setup_mode.run();
       }
@@ -340,13 +385,21 @@ void button_callback(uint8_t button, bool state)
   }
 }
 
+#ifdef ESP8266
 void wifi_connect_callback(const WiFiEventStationModeGotIP& event)
+#else
+void wifi_connect_callback(WiFiEvent_t event)
+#endif
 {
   wifi_connected = true;
   display.set_network(wifi_connected, network_connected, network_connected);
 }
 
+#ifdef ESP8266
 void wifi_disconnect_callback(const WiFiEventStationModeDisconnected& event)
+#else
+void wifi_disconnect_callback(WiFiEvent_t event)
+#endif
 {
   wifi_connected = false;
   display.set_network(wifi_connected, network_connected, network_connected);
@@ -562,34 +615,60 @@ void setup()
   pinMode(relay_pin, OUTPUT);
   pinMode(button_a_pin, INPUT_PULLUP);
   pinMode(button_b_pin, INPUT_PULLUP);
+#ifdef ESP8266
   pinMode(flash_pin, INPUT);
+#else
+  pinMode(flash_pin, INPUT_PULLUP);
+#endif
 
   digitalWrite(buzzer_pin, LOW);
   digitalWrite(pn532_reset_pin, HIGH);
   digitalWrite(relay_pin, LOW);
 
+#ifdef ESP8266
   snprintf(clientid, sizeof(clientid), "%06x", ESP.getChipId());
   snprintf(hostname, sizeof(hostname), "toolman-%06x", ESP.getChipId());
   wifi_set_sleep_type(NONE_SLEEP_T);
+#else
+  uint8_t m[6] = {};
+  esp_efuse_mac_get_default(m);
+  snprintf(clientid, sizeof(clientid), "%02x%02x%02x", m[3], m[4], m[5]);
+  snprintf(hostname, sizeof(hostname), "toolman-%02x%02x%02x", m[3], m[4], m[5]);
+#endif
   WiFi.hostname(hostname);
 
+#ifdef ESP8266
   wifiEventConnectHandler = WiFi.onStationModeGotIP(wifi_connect_callback);
   wifiEventDisconnectHandler = WiFi.onStationModeDisconnected(wifi_disconnect_callback);
+#else
+  WiFi.onEvent(wifi_connect_callback, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
+  WiFi.onEvent(wifi_disconnect_callback, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+#endif
 
+#ifdef ESP8266
   Serial.begin(115200);
   for (int i=0; i<1024; i++) {
     Serial.print(" \b");
   }
+#else
+  Serial.begin();
+  Serial.setDebugOutput(false);
+#endif
   Serial.println();
-
   Serial.print(hostname);
+  Serial.print(" ");
+  Serial.print(ARDUINO_VARIANT);
   Serial.print(" ");
   Serial.println(ESP.getSketchMD5());
 
   Wire.begin(sda_pin, scl_pin);
   buzzer.begin();
   display.begin();
+#ifdef ESP8266
   if (!SPIFFS.begin()) {
+#else
+  if (!SPIFFS.begin(true)) {
+#endif
     Serial.println("SPIFFS.begin() failed");
   }
 
@@ -616,6 +695,10 @@ void setup()
   net.onRestartRequest(network_restart_callback);
   net.onReceiveJson(network_message_callback);
   net.onTransferStatus(network_transfer_status_callback);
+#ifdef ESP32
+  net.setKeepalive(35000);
+  net.begin();
+#endif
   net.start();
 
   ui.begin();
