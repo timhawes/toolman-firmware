@@ -11,6 +11,21 @@ int decode_hex(const char *hexstr, uint8_t *bytes, size_t max_len);
 String hexlify(uint8_t bytes[], uint8_t len);
 void i2c_scan();
 
+class Clock
+{
+private:
+  unsigned long seconds = 0; // accumulated seconds
+  unsigned long milliseconds = 0; // accumulated milliseconds
+  unsigned long reference_time; // milliseconds since last start()
+  bool running;
+public:
+  Clock();
+  unsigned long read();
+  void start();
+  void stop();
+  void reset();
+};
+
 class MilliClock
 {
 private:
