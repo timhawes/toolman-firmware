@@ -14,6 +14,21 @@ void i2c_scan();
 void fix_filenames();
 #endif
 
+class Clock
+{
+private:
+  unsigned long seconds = 0; // accumulated seconds
+  unsigned long milliseconds = 0; // accumulated milliseconds
+  unsigned long reference_time; // milliseconds since last start()
+  bool running;
+public:
+  Clock();
+  unsigned long read();
+  void start();
+  void stop();
+  void reset();
+};
+
 class MilliClock
 {
 private:

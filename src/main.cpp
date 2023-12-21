@@ -118,6 +118,8 @@ bool network_connected = false;
 
 Ticker token_lookup_timer;
 
+Clock total_session_clock;
+Clock total_active_clock;
 MilliClock session_clock;
 MilliClock active_clock;
 unsigned long session_start;
@@ -158,7 +160,7 @@ void send_state()
     }
   }
 
-  StaticJsonDocument<JSON_OBJECT_SIZE(7)> obj;
+  StaticJsonDocument<JSON_OBJECT_SIZE(9)> obj;
   obj["cmd"] = "state_info";
   obj["state"] = state;
   obj["user"] = (const char*)user_name;
@@ -166,6 +168,8 @@ void send_state()
   obj["milliamps_simple"] = device_milliamps_simple;
   obj["active_time"] = active_time;
   obj["idle_time"] = idle_time;
+  obj["total_active_seconds"] = total_active_clock.read();
+  obj["total_session_seconds"] = total_session_clock.read();
   net.sendJson(obj);
 
   status_updated = false;
@@ -186,6 +190,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       device_enabled = true;
       digitalWrite(relay_pin, HIGH);
       device_relay = true;
+      total_session_clock.start();
       status_updated = true;
       session_start = millis();
       session_went_active = session_start;
@@ -217,6 +222,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       device_enabled = true;
       digitalWrite(relay_pin, HIGH);
       device_relay = true;
+      total_session_clock.start();
       status_updated = true;
       session_start = millis();
       session_went_active = session_start;
@@ -783,6 +789,7 @@ void adc_loop()
         status_updated = true;
         session_went_active = millis();
         active_clock.start();
+        total_active_clock.start();
         display.set_state(device_enabled, device_active);
         if (config.events) net.sendEvent("active");
       }
@@ -792,6 +799,7 @@ void adc_loop()
         status_updated = true;
         session_went_idle = millis();
         active_clock.stop();
+        total_active_clock.stop();
         display.set_state(device_enabled, device_active);
         if (config.events) net.sendEvent("inactive");
       }
@@ -825,6 +833,7 @@ void loop() {
   if (device_relay == true && device_enabled == false && device_active == false) {
     digitalWrite(relay_pin, LOW);
     device_relay = false;
+    total_session_clock.stop();
   }
 
   if (status_updated) {

@@ -109,6 +109,50 @@ void fix_filenames() {
 }
 #endif
 
+Clock::Clock()
+{
+  reference_time = millis();
+  running = false;
+}
+
+void Clock::reset()
+{
+  seconds = 0;
+  milliseconds = 0;
+  reference_time = millis();
+}
+
+void Clock::start()
+{
+  if (!running) {
+    reference_time = millis();
+    running = true;
+  }
+}
+
+void Clock::stop()
+{
+  if (running) {
+    milliseconds = milliseconds + (millis() - reference_time);
+    running = false;
+  }
+}
+
+unsigned long Clock::read()
+{
+  if (running) {
+    unsigned long now = millis();
+    milliseconds = milliseconds + (now - reference_time);
+    reference_time = now;
+  }
+  if (milliseconds > 1000) {
+    unsigned long tmp_seconds = milliseconds / 1000;
+    milliseconds = milliseconds - (tmp_seconds * 1000);
+    seconds = seconds + tmp_seconds;
+  }
+  return seconds;
+}
+
 MilliClock::MilliClock()
 {
   start_time = millis();
