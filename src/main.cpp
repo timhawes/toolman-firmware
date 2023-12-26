@@ -15,6 +15,8 @@
 #include <SPIFFS.h>
 #endif
 
+#include <esp_task_wdt.h>
+
 #include <ArduinoJson.h>
 #include <Buzzer.hpp>
 #include <NFCReader.hpp>
@@ -688,6 +690,13 @@ void setup()
     ESP.restart();
   }
 
+#ifdef ESP32
+  enableCore0WDT();
+#ifndef CONFIG_FREERTOS_UNICORE
+  enableCore1WDT();
+#endif
+#endif
+
   power_reader.begin();
 
   net.onConnect(network_connect_callback);
@@ -707,6 +716,10 @@ void setup()
   nfc.token_removed_callback = token_removed;
   nfc.reader_status_callback = nfcreader_status_callback;
   ui.button_callback = button_callback;
+
+#ifdef ESP32
+  enableLoopWDT();
+#endif
 }
 
 void adc_loop()
