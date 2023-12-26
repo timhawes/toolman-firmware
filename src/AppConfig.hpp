@@ -40,8 +40,10 @@ class AppConfig {
   bool reboot_enabled;
   bool swap_buttons;
   char name[21];
+  float ct_cal;
+  float ct_ratio;
+  float ct_resistor;
   int active_threshold;
-  int adc_multiplier;
   int nfc_1m_limit;
   int nfc_5s_limit;
   int nfc_check_interval;

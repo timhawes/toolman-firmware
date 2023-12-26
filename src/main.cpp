@@ -38,6 +38,7 @@ const uint8_t pn532_reset_pin = 2;
 const uint8_t flash_pin = 0;
 const uint8_t button_a_pin = 4;
 const uint8_t button_b_pin = 5;
+const uint8_t adc_pin = A0;
 #endif
 #ifdef ARDUINO_LOLIN_S2_MINI
 const uint8_t buzzer_pin = 12;
@@ -48,6 +49,7 @@ const uint8_t pn532_reset_pin = 16;
 const uint8_t flash_pin = 0;
 const uint8_t button_a_pin = 35;
 const uint8_t button_b_pin = 33;
+const uint8_t adc_pin = 3;
 #endif
 #ifdef ARDUINO_LOLIN_S3_MINI
 const uint8_t buzzer_pin = 10;
@@ -58,6 +60,7 @@ const uint8_t pn532_reset_pin = 16;
 const uint8_t flash_pin = 0;
 const uint8_t button_a_pin = 36;
 const uint8_t button_b_pin = 35;
+const uint8_t adc_pin = 2;
 #endif
 
 char clientid[15];
@@ -74,6 +77,7 @@ Display display(lcd);
 NetThing net(1500, 4096);
 Buzzer buzzer(buzzer_pin);
 UI ui(flash_pin, button_a_pin, button_b_pin);
+PowerReader power_reader(adc_pin);
 
 char user_name[20];
 char last_user[20];
@@ -105,7 +109,6 @@ unsigned long session_went_active;
 unsigned long session_went_idle;
 bool status_updated = false;
 
-PowerReader power_reader;
 #ifdef LOOPMETRICS_ENABLED
 LoopMetrics loop_metrics;
 #endif
@@ -322,8 +325,9 @@ void load_app_config()
   display.uptime_enabled = config.dev;
   display.set_device(config.name);
   ui.swap_buttons(config.swap_buttons);
-  power_reader.SetInterval(config.adc_interval);
-  power_reader.SetAdcAmpRatio(config.adc_multiplier);
+  power_reader.setCalibration(config.ct_cal);
+  power_reader.setRatio(config.ct_ratio);
+  power_reader.setResistor(config.ct_resistor);
 }
 
 void load_config()
@@ -684,11 +688,7 @@ void setup()
     ESP.restart();
   }
 
-  // run the ADC calculations a few times to stabilise the low-pass filter
-  for (int i=0; i<10; i++) {
-    power_reader.ReadRmsCurrent();
-    yield();
-  }
+  power_reader.begin();
 
   net.onConnect(network_connect_callback);
   net.onDisconnect(network_disconnect_callback);
@@ -714,7 +714,6 @@ void adc_loop()
   static unsigned long last_read;
 
   if (config.adc_interval == 0 ||
-      config.adc_multiplier == 0 ||
       config.active_threshold == 0) {
     if (device_active == true) {
       device_active = false;
@@ -725,8 +724,8 @@ void adc_loop()
   }
 
   if ((long)(millis() - last_read) > config.adc_interval) {
-    device_milliamps = power_reader.ReadRmsCurrent() * 1000;
-    device_milliamps_simple = power_reader.ReadSimpleCurrent() * 1000;
+    device_milliamps = power_reader.readRMSCurrent() * 1000;
+    device_milliamps_simple = power_reader.readRMSEquivalentCurrent() * 1000;
     display.set_current(device_milliamps);
     last_read = millis();
 

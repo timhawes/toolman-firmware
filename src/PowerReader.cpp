@@ -1,55 +1,86 @@
-// SPDX-FileCopyrightText: 2019-2020 Tim Hawes
+// SPDX-FileCopyrightText: 2019-2023 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "PowerReader.hpp"
 
-PowerReader::PowerReader() {
+#ifdef ESP8266
+uint32_t analogReadMilliVolts(uint8_t pin) {
+#ifdef ARDUINO_ESP8266_WEMOS_D1MINI
+  // D1 Mini has a voltage divider on the ADC input
+  return analogRead(pin) * 3200 / 1024;
+#else
+  // assume default 1V AREF on other ESP8266
+  return analogRead(pin) * 1000 / 1024;
+#endif
+}
+#endif
 
+PowerReader::PowerReader(uint8_t _adc_pin) {
+  adc_pin = _adc_pin;
 }
 
-float PowerReader::ReadRmsCurrent() {
-  const int sample_count = 1000;
-  static double offsetI = 0;
-  double sumI = 0;
-  float Irms;
+void PowerReader::begin() {
+#ifdef ESP32
+  analogSetPinAttenuation(adc_pin, ADC_11db);
+#endif
 
-  for (unsigned int n = 0; n < sample_count; n++)
-  {
-    double sampleI;
-    double filteredI;
-    double sqI;
+  // initialise the DC offset calculation
+  unsigned start_time = millis();
+  double total = 0;
+  unsigned long count = 0;
+  while ((long)(millis() - start_time) < init_time) {
+    total += analogReadMilliVolts(adc_pin);
+    count++;
+  }
+  offset = total / count;
+}
 
-    sampleI = analogRead(A0);
+float PowerReader::readRMSCurrent() {
+  int sample_count = 0;
+  double total = 0;
 
-    // Digital low pass filter extracts the 2.5 V or 1.65 V dc offset,
-    // then subtract this - signal is now centered on 0 counts.
-    offsetI = (offsetI + (sampleI-offsetI)/1024);
-    filteredI = sampleI - offsetI;
+  unsigned start_time = millis();
+  while ((long)(millis() - start_time) < sample_time) {
+    double sample;
+    double filtered;
 
-    // Root-mean-square method current
-    // 1) square current values
-    sqI = filteredI * filteredI;
-    // 2) sum
-    sumI += sqI;
+    sample = analogReadMilliVolts(adc_pin);
+    sample_count++;
+
+    // low-pass filter to track 0V DC bias
+    offset = (offset + (sample - offset) / offset_samples);
+
+    filtered = sample - offset;
+    total += (filtered * filtered);
   }
 
-  Irms = adc_to_amps * sqrt(sumI / sample_count) / 1024;
-  return Irms;
+  if (sample_count == 0) {
+    // avoid obscure divide-by-zero errors
+    // this would only happen if a background task
+    // stole the CPU for an extended period
+    return 0;
+  }
+
+  return sqrt(total / sample_count)  // ADC volts RMS
+         * ratio                     // scale for the current-transformer ratio
+         * cal                       // apply manual calibration
+         / resistor                  // apply Ohm's law (I = V/R)
+         / 1000;                     // convert millivolts to volts
 }
 
-float PowerReader::ReadSimpleCurrent()
+float PowerReader::readRMSEquivalentCurrent()
 {
   const int valcount = 50;
   const int readings = 4;
   uint16_t values[valcount];
   unsigned int max_val = 0;
-  unsigned int min_val = 1024*readings;
+  unsigned int min_val = -1;
 
   for (int i=0; i<valcount; i++) {
     values[i] = 0;
     for (int j=0; j<readings; j++) {
-      values[i] += analogRead(A0);
+      values[i] += analogReadMilliVolts(adc_pin);
     }
   }
 
@@ -62,32 +93,20 @@ float PowerReader::ReadSimpleCurrent()
     }
   }
 
-  float diff = (float)(max_val - min_val) / 4.0;
-  float adc_to_volts = 1.0 / 1024.0;
-  float vpp = diff * adc_to_volts;
+  float vpp = (float)(max_val - min_val) / (float)readings / 1000.0;
   float vrms = vpp / 1.414213562 / 2;
-  float amps = vrms * 100.0;
-
-  //Serial.print("adc_to_volts="); Serial.print(adc_to_volts, 6);
-  //Serial.print(" min="); Serial.print(min_val, DEC);
-  //Serial.print(" max="); Serial.print(max_val, DEC);
-  //Serial.print(" diff="); Serial.print(diff, DEC);
-  //Serial.print(" Vpp="); Serial.print(vpp, 6);
-  //Serial.print(" Vrms="); Serial.print(vrms, 6);
-  //Serial.print(" amps="); Serial.println(amps, 6);
-
-  return ((float)(max_val - min_val) / (float)readings) * adc_to_amps / 1000;
-  //return (unsigned long)((max_val - min_val) * config.adc_multiplier * 1000) / (config.adc_divider * readings);
+  float amps = cal * ratio * vrms / resistor;
+  return amps;
 }
 
-void PowerReader::SetAdcAmpRatio(float ratio) {
-    adc_to_amps = ratio;
+void PowerReader::setCalibration(float _cal) {
+  cal = _cal;
 }
 
-void PowerReader::SetInterval(int _interval) {
-    interval = _interval;
+void PowerReader::setRatio(float _ratio) {
+  ratio = _ratio;
 }
 
-void PowerReader::SetVoltage(float _voltage) {
-    voltage = _voltage;
+void PowerReader::setResistor(float _resistor) {
+  resistor = _resistor;
 }

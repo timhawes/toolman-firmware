@@ -33,7 +33,9 @@ void AppConfig::LoadDefaults() {
   // app
   active_threshold = 500;
   adc_interval = 1000;
-  adc_multiplier = 67;
+  ct_cal = 1.0;
+  ct_ratio = 1.0;
+  ct_resistor = 1.0;
   dev = false;
   events = true;
   idle_timeout = 600000;
@@ -153,7 +155,9 @@ bool AppConfig::LoadAppJson(const char *filename) {
 
   active_threshold = root["active_threshold"] | 500;
   adc_interval = root["adc_interval"] | 1000;
-  adc_multiplier = root["adc_multiplier"] | 67;
+  ct_cal = root["ct_cal"] | 1.0;
+  ct_ratio = root["ct_ratio"] | 2000.0;
+  ct_resistor = root["ct_resistor"] | 33.0;
   dev = root["dev"] | false;
   events = root["events"] | true;
   idle_timeout = root["idle_timeout"] | 600000;
