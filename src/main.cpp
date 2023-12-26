@@ -15,7 +15,9 @@
 #include <SPIFFS.h>
 #endif
 
+#ifdef ESP32
 #include <esp_task_wdt.h>
+#endif
 
 #include <ArduinoJson.h>
 #include <Buzzer.hpp>
