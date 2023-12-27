@@ -20,7 +20,7 @@
 #endif
 
 #include <ArduinoJson.h>
-#include <Buzzer.hpp>
+#include <SimpleBuzzer.hpp>
 #include <NFCReader.hpp>
 #include <base64.hpp>
 
@@ -79,7 +79,7 @@ NFC nfc(pn532i2c, pn532, pn532_reset_pin);
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 Display display(lcd);
 NetThing net(1500, 4096);
-Buzzer buzzer(buzzer_pin);
+SimpleBuzzer buzzer(buzzer_pin);
 UI ui(flash_pin, button_a_pin, button_b_pin);
 PowerReader power_reader(adc_pin);
 
@@ -116,9 +116,6 @@ bool status_updated = false;
 #ifdef LOOPMETRICS_ENABLED
 LoopMetrics loop_metrics;
 #endif
-
-buzzer_note network_tune[128];
-buzzer_note ascending[] = { {1000, 250}, {1500, 250}, {2000, 250}, {0, 0} };
 
 bool system_is_idle()
 {
@@ -468,11 +465,7 @@ void network_transfer_status_callback(const char *filename, int progress, bool a
 
 void network_cmd_buzzer_beep(const JsonDocument &obj)
 {
-  if (obj["hz"]) {
-    buzzer.beep(obj["ms"].as<int>(), obj["hz"].as<int>());
-  } else {
-    buzzer.beep(obj["ms"].as<int>());
-  }
+  buzzer.beep(obj["ms"].as<int>());
 }
 
 void network_cmd_buzzer_chirp(const JsonDocument &obj)
@@ -483,23 +476,6 @@ void network_cmd_buzzer_chirp(const JsonDocument &obj)
 void network_cmd_buzzer_click(const JsonDocument &obj)
 {
   buzzer.click();
-}
-
-void network_cmd_buzzer_tune(const JsonDocument &obj)
-{
-  const char *b64 = obj["data"].as<const char*>();
-  unsigned int binary_length = decode_base64_length((unsigned char*)b64);
-  uint8_t binary[binary_length];
-  binary_length = decode_base64((unsigned char*)b64, binary);
-
-  memset(network_tune, 0, sizeof(network_tune));
-  if (binary_length > sizeof(network_tune)) {
-    memcpy(network_tune, binary, sizeof(network_tune));
-  } else {
-    memcpy(network_tune, binary, binary_length);
-  }
-
-  buzzer.play(network_tune);
 }
 
 void network_cmd_display_backlight(const JsonDocument &obj)
@@ -585,8 +561,6 @@ void network_message_callback(const JsonDocument &obj)
     network_cmd_buzzer_chirp(obj);
   } else if (cmd == "buzzer_click") {
     network_cmd_buzzer_click(obj);
-  } else if (cmd == "buzzer_tune") {
-    network_cmd_buzzer_tune(obj);
   } else if (cmd == "display_backlight") {
     network_cmd_display_backlight(obj);
   } else if (cmd == "display_message") {
