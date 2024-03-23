@@ -91,6 +91,7 @@ unsigned long pending_token_time = 0;
 
 bool firmware_restart_pending = false;
 bool restart_pending = false;
+uint16_t restart_reason = 0;
 bool device_enabled = false; // the relay should be switched on
 bool device_relay = false; // the relay *is* switched on
 bool device_active = false; // the current sensor is registering a load
@@ -386,8 +387,7 @@ void button_callback(uint8_t button, bool state)
 
   if (button_a && button_b && (config.dev || config.reboot_enabled)) {
     display.restart_warning();
-    ESP.restart();
-    delay(5000);
+    net.restartWithReason(NETTHING_RESTART_ENDUSER);
   }
 }
 
@@ -423,12 +423,12 @@ void network_disconnect_callback()
   display.set_network(wifi_connected, network_connected, network_connected);
 }
 
-void network_restart_callback(bool immediate, bool firmware)
+void network_restart_callback(bool immediate, bool firmware, uint16_t reason)
 {
+  restart_reason = reason;
   if (immediate) {
     display.restart_warning();
-    ESP.restart();
-    delay(5000);
+    net.restartWithReason(restart_reason);
   }
   if (firmware) {
     firmware_restart_pending = true;
@@ -664,7 +664,7 @@ void setup()
     delay(1000);
     SetupMode setup_mode(hostname, SETUP_PASSWORD);
     setup_mode.run();
-    ESP.restart();
+    net.restartWithReason(NETTHING_RESTART_CONFIG_CHANGE);
   }
 
 #ifdef ESP32
@@ -782,9 +782,7 @@ void loop() {
       display.firmware_warning();
       delay(1000);
       Serial.println("restarting now!");
-      ESP.restart();
-      delay(5000);
-      display.refresh();
+      net.restartWithReason(restart_reason);
     }
   }
 
@@ -795,9 +793,7 @@ void loop() {
       display.restart_warning();
       delay(1000);
       Serial.println("restarting now!");
-      ESP.restart();
-      delay(5000);
-      display.refresh();
+      net.restartWithReason(restart_reason);
     }
   }
 
