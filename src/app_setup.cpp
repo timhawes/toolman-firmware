@@ -95,6 +95,9 @@ void SetupMode::run() {
   server.begin(80);
 
   while (1) {
+#ifdef ESP32
+    feedLoopWDT();
+#endif
     server.handleClient();
   }
 
