@@ -654,6 +654,10 @@ void setup()
     Serial.println("SPIFFS.begin() failed");
   }
 
+#ifdef ESP8266
+  fix_filenames();
+#endif
+
   if (SPIFFS.exists(WIFI_JSON_FILENAME) && SPIFFS.exists(NET_JSON_FILENAME)) {
     load_config();
   } else {
@@ -680,6 +684,9 @@ void setup()
   net.onRestartRequest(network_restart_callback);
   net.onReceiveJson(network_message_callback);
   net.onTransferStatus(network_transfer_status_callback);
+#ifdef ESP8266
+  net.setFilenamePrefix("/");
+#endif
 #ifdef ESP32
   net.setKeepalive(35000);
   net.begin();
