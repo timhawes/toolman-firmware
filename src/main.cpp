@@ -44,6 +44,17 @@ const uint8_t button_a_pin = 4;
 const uint8_t button_b_pin = 5;
 const uint8_t adc_pin = A0;
 #endif
+#ifdef ARDUINO_D1_MINI32
+const uint8_t buzzer_pin = 5;
+const uint8_t sda_pin = 23;
+const uint8_t scl_pin = 19;
+const uint8_t relay_pin = 35;
+const uint8_t pn532_reset_pin = 16;
+const uint8_t flash_pin = 17;
+const uint8_t button_a_pin = 22;
+const uint8_t button_b_pin = 21;
+const uint8_t adc_pin = 36;
+#endif
 #ifdef ARDUINO_LOLIN_S2_MINI
 const uint8_t buzzer_pin = 12;
 const uint8_t sda_pin = 11;
@@ -657,7 +668,7 @@ void setup()
   WiFi.onEvent(wifi_disconnect_callback, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 #endif
 
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ARDUINO_D1_MINI32)
   Serial.begin(115200);
   for (int i=0; i<1024; i++) {
     Serial.print(" \b");
