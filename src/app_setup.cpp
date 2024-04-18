@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2017-2023 Tim Hawes
+// SPDX-FileCopyrightText: 2017-2024 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -27,6 +27,12 @@ SetupMode::SetupMode(const char *ssid, const char *password) {
   _ssid = ssid;
   _password = password;
 }
+
+#ifdef ESP32
+void SetupMode::setWatchdogFeed(bool enabled) {
+  feed_watchdog = enabled;
+}
+#endif
 
 void SetupMode::configRootHandler() {
   String output = FPSTR(html);
@@ -96,7 +102,9 @@ void SetupMode::run() {
 
   while (1) {
 #ifdef ESP32
-    feedLoopWDT();
+    if (feed_watchdog) {
+      feedLoopWDT();
+    }
 #endif
     server.handleClient();
   }

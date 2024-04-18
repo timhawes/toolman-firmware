@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2017-2023 Tim Hawes
+// SPDX-FileCopyrightText: 2017-2024 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -19,6 +19,9 @@ class SetupMode
 private:
   const char *_ssid;
   const char *_password;
+#ifdef ESP32
+  bool feed_watchdog = false;
+#endif
 #ifdef ESP8266
   ESP8266WebServer server;
 #else
@@ -28,6 +31,9 @@ private:
   void configUpdateHandler();
 public:
   SetupMode(const char *ssid, const char *password);
+#ifdef ESP32
+  void setWatchdogFeed(bool enabled);
+#endif
   void run();
 };
 

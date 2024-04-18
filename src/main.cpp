@@ -368,6 +368,9 @@ void button_callback(uint8_t button, bool state)
         delay(500);
 #endif
         SetupMode setup_mode(hostname, SETUP_PASSWORD);
+#ifdef ESP32
+        setup_mode.setWatchdogFeed(true);
+#endif
         setup_mode.run();
       }
       break;
@@ -707,6 +710,9 @@ void setup()
     net.stop();
     delay(1000);
     SetupMode setup_mode(hostname, SETUP_PASSWORD);
+#ifdef ESP32
+    setup_mode.setWatchdogFeed(false);
+#endif
     setup_mode.run();
     net.restartWithReason(NETTHING_RESTART_CONFIG_CHANGE);
   }
