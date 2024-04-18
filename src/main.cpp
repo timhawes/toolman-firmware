@@ -551,6 +551,32 @@ void network_cmd_token_info(const JsonDocument &obj)
   );
 }
 
+#ifdef TOKENDB_DEBUG
+void network_cmd_tokendb_query(const JsonDocument &obj)
+{
+  TokenDB tokendb(TOKENS_FILENAME);
+
+  unsigned long start = millis();
+  bool found = tokendb.lookup(obj["uid"] | "");
+  long query_time = millis() - start;
+
+  DynamicJsonDocument reply(512);
+  reply["cmd"] = "tokendb_info";
+  reply["uid"] = obj["uid"] | "";
+  reply["found"] = found;
+  reply["query_time"] = query_time;
+  reply["dbversion"] = tokendb.get_version();
+
+  if (found) {
+    reply["name"] = tokendb.get_user();
+    reply["access"] = tokendb.get_access_level();
+  }
+
+  reply.shrinkToFit();
+  net.sendJson(reply);
+}
+#endif
+
 void network_message_callback(const JsonDocument &obj)
 {
   String cmd = obj["cmd"];
@@ -577,6 +603,10 @@ void network_message_callback(const JsonDocument &obj)
     network_cmd_stop(obj);
   } else if (cmd == "token_info") {
     network_cmd_token_info(obj);
+#ifdef TOKENDB_DEBUG
+  } else if (cmd == "tokendb_query") {
+    network_cmd_tokendb_query(obj);
+#endif
   } else {
     StaticJsonDocument<JSON_OBJECT_SIZE(3)> reply;
     reply["cmd"] = "error";

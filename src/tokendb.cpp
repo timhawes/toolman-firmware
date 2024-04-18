@@ -126,11 +126,12 @@ bool TokenDB::lookup(uint8_t uidlen, uint8_t *uidbytes)
 
   access_level = 0;
   user = "";
+  dbversion = -1;
 
   if (SPIFFS.exists(_filename)) {
     File tokens_file = SPIFFS.open(_filename, "r");
     if (tokens_file) {
-      uint8_t dbversion = tokens_file.read();
+      dbversion = tokens_file.read();
       switch (dbversion) {
         case 1:
           return query_v1(tokens_file, uidlen, uidbytes);
@@ -174,4 +175,9 @@ int TokenDB::get_access_level()
 String TokenDB::get_user()
 {
   return user;
+}
+
+int TokenDB::get_version()
+{
+  return dbversion;
 }
