@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/*
     tags:
       - v0.0.*
   pull_request:
@@ -16,18 +17,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
-    - uses: actions/cache@v3
+    - uses: actions/cache@v4
       with:
         path: |
           ~/.cache/pip
           ~/.platformio/.cache
         key: ${{ runner.os }}-pio
-    - uses: actions/setup-python@v4
+    - uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.13'
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
@@ -48,12 +49,19 @@ jobs:
         for variant in $(cd .pio/build && echo *); do
           if [ -d .pio/build/$variant ]; then
             md5=$(md5sum .pio/build/$variant/firmware.bin | cut -d' ' -f1)
-            if [ "${{github.ref_type}}" = "tag" ]; then
-              cp .pio/build/$variant/firmware.bin firmware/toolman-${{github.ref_name}}-$variant-$md5.bin
-              cp .pio/build/$variant/firmware.elf firmware/toolman-${{github.ref_name}}-$variant-$md5.elf
-            elif [ "${{github.ref_type}}" = "branch" ]; then
-              cp .pio/build/$variant/firmware.bin firmware/toolman-${{env.TODAY}}-${{github.ref_name}}-${{env.SHORT_SHA}}-$variant-$md5.bin
-              cp .pio/build/$variant/firmware.elf firmware/toolman-${{env.TODAY}}-${{github.ref_name}}-${{env.SHORT_SHA}}-$variant-$md5.elf
+            if [ "${{github.event_name}}" = "pull_request" ]; then
+              pr_number=$(echo -n ${{github.ref_name}} | cut -d/ -f1)
+              cp .pio/build/$variant/firmware.bin firmware/toolman-${{env.TODAY}}-pr${pr_number}-${{env.SHORT_SHA}}-$variant-$md5.bin
+              cp .pio/build/$variant/firmware.elf firmware/toolman-${{env.TODAY}}-pr${pr_number}-${{env.SHORT_SHA}}-$variant-$md5.elf
+            elif [ "${{github.event_name}}" = "push" ]; then
+              if [ "${{github.ref_type}}" = "tag" ]; then
+                cp .pio/build/$variant/firmware.bin firmware/toolman-${{github.ref_name}}-$variant-$md5.bin
+                cp .pio/build/$variant/firmware.elf firmware/toolman-${{github.ref_name}}-$variant-$md5.elf
+              elif [ "${{github.ref_type}}" = "branch" ]; then
+                ref_name=$(echo -n ${{github.ref_name}} | sed -e 's/[^A-Za-z0-9]/_/g')
+                cp .pio/build/$variant/firmware.bin firmware/toolman-${{env.TODAY}}-${ref_name}-${{env.SHORT_SHA}}-$variant-$md5.bin
+                cp .pio/build/$variant/firmware.elf firmware/toolman-${{env.TODAY}}-${ref_name}-${{env.SHORT_SHA}}-$variant-$md5.elf
+              fi
             fi
           fi
         done
