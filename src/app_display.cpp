@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2017-2023 Tim Hawes
+// SPDX-FileCopyrightText: 2017-2024 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -106,12 +106,14 @@ void Display::loop()
 void Display::set_user(const char *name)
 {
   strncpy(user_name, name, sizeof(user_name));
+  user_name[sizeof(user_name)-1] = '\0';
   draw_left(0, 1, name, 12);
 }
 
 void Display::set_device(const char *name)
 {
   strncpy(device_name, name, sizeof(device_name));
+  device_name[sizeof(device_name)-1] = '\0';
   draw_left(0, 0, name, 20);
 }
 
@@ -184,6 +186,7 @@ void Display::set_current(unsigned int milliamps)
 void Display::set_motd(const char *_motd)
 {
   strncpy(motd, _motd, sizeof(motd));
+  motd[sizeof(motd)-1] = '\0';
 }
 
 void Display::message(const char *text, unsigned long timeout)

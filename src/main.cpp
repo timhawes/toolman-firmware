@@ -94,8 +94,8 @@ SimpleBuzzer buzzer(buzzer_pin);
 UI ui(flash_pin, button_a_pin, button_b_pin);
 PowerReader power_reader(adc_pin);
 
-char user_name[20];
-char last_user[20];
+char user_name[33];
+char last_user[33];
 uint8_t user_access = 0;
 char pending_token[15];
 unsigned long pending_token_time = 0;
@@ -181,6 +181,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
   if (found) {
     if (access > 0) {
       strncpy(user_name, name, sizeof(user_name));
+      user_name[sizeof(user_name)-1] = '\0';
       display.set_user(name);
       device_enabled = true;
       digitalWrite(relay_pin, HIGH);
@@ -211,6 +212,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
   if (tokendb.lookup(uid)) {
     if (tokendb.get_access_level() > 0) {
       strncpy(user_name, tokendb.get_user().c_str(), sizeof(user_name));
+      user_name[sizeof(user_name)-1] = '\0';
       display.set_user(tokendb.get_user().c_str());
       device_enabled = true;
       digitalWrite(relay_pin, HIGH);
@@ -280,6 +282,7 @@ void token_present(NFCToken token)
   }
 
   strncpy(pending_token, token.uidString().c_str(), sizeof(pending_token));
+  pending_token[sizeof(pending_token)-1] = '\0';
 #ifdef ESP8266
   token_lookup_timer.once_ms(config.token_query_timeout, std::bind(&token_info_callback, pending_token, false, "", 0));
 #else
