@@ -118,12 +118,11 @@ bool network_connected = false;
 
 Ticker token_lookup_timer;
 
-MilliClock session_clock;
-MilliClock active_clock;
+MilliClock session_clock; // total time for session
+MilliClock active_clock; // total active time for session
 MilliClock idle_clock; // idle counter (resets on any activity)
 unsigned long session_start;
 unsigned long session_went_active;
-unsigned long session_went_idle;
 bool status_updated = false;
 
 #ifdef LOOPMETRICS_ENABLED
@@ -147,7 +146,7 @@ void send_state()
       active_time = millis() - session_went_active;
     } else {
       state = "idle";
-      idle_time = millis() - session_went_idle;
+      idle_time = idle_clock.read();
     }
   } else {
     if (device_active) {
@@ -190,7 +189,6 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       status_updated = true;
       session_start = millis();
       session_went_active = session_start;
-      session_went_idle = session_start;
       session_clock.reset();
       session_clock.start();
       active_clock.reset();
@@ -222,7 +220,6 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       status_updated = true;
       session_start = millis();
       session_went_active = session_start;
-      session_went_idle = session_start;
       session_clock.reset();
       session_clock.start();
       active_clock.reset();
@@ -801,7 +798,6 @@ void adc_loop()
       if (device_active) {
         device_active = false;
         status_updated = true;
-        session_went_idle = millis();
         active_clock.stop();
         idle_clock.reset();
         display.set_state(device_enabled, device_active);
@@ -831,7 +827,7 @@ void loop() {
   }
 
   if (config.show_idle && config.idle_warning_beep > 0 && config.idle_warning_timeout > 0) {
-    if (device_enabled && (!device_active) && (idle_remaining > 0) && (idle_remaining <= config.idle_warning_timeout)) {
+    if (device_enabled && (!device_active) && (idle_remaining > 0) && (idle_remaining < config.idle_warning_timeout)) {
       if (!idle_warning_given) {
         buzzer.beep(config.idle_warning_beep);
         idle_warning_given = true;
@@ -850,7 +846,7 @@ void loop() {
   net.loop();
 
   if (device_enabled == true && device_active == false && config.idle_timeout != 0) {
-    if ((long)(millis() - session_went_idle) > config.idle_timeout) {
+    if ((long)(idle_clock.read()) > config.idle_timeout) {
       device_enabled = false;
       status_updated = true;
       display.set_state(device_enabled, device_active);
