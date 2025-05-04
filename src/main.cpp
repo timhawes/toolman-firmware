@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2017-2024 Tim Hawes
+// SPDX-FileCopyrightText: 2017-2025 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -120,6 +120,7 @@ Ticker token_lookup_timer;
 
 MilliClock session_clock;
 MilliClock active_clock;
+MilliClock idle_clock; // idle counter (resets on any activity)
 unsigned long session_start;
 unsigned long session_went_active;
 unsigned long session_went_idle;
@@ -193,6 +194,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       session_clock.reset();
       session_clock.start();
       active_clock.reset();
+      idle_clock.reset();
       display.message("Access Granted", 2000);
       display.set_state(device_enabled, false);
       if (config.quiet) {
@@ -224,6 +226,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       session_clock.reset();
       session_clock.start();
       active_clock.reset();
+      idle_clock.reset();
       display.message("Access Granted", 2000);
       display.set_state(device_enabled, false);
       if (config.quiet) {
@@ -252,6 +255,7 @@ void token_present(NFCToken token)
   } else {
     buzzer.chirp();
   }
+  idle_clock.reset();
   display.message("Checking...");
   DynamicJsonDocument obj(512);
   JsonObject tokenobj = obj.createNestedObject("token");
@@ -339,6 +343,7 @@ void load_app_config()
   display.current_enabled = config.dev;
   display.freeheap_enabled = config.dev;
   display.uptime_enabled = config.dev;
+  display.idle_enabled = config.show_idle;
   display.set_device(config.name);
   ui.swap_buttons(config.swap_buttons);
   power_reader.setCalibration(config.ct_cal);
@@ -357,6 +362,8 @@ void button_callback(uint8_t button, bool state)
 {
   static bool button_a;
   static bool button_b;
+
+  idle_clock.reset();
 
   switch (button) {
     case 0: {
@@ -750,6 +757,9 @@ void setup()
   nfc.reader_status_callback = nfcreader_status_callback;
   ui.button_callback = button_callback;
 
+  idle_clock.reset();
+  idle_clock.start();
+
 #ifdef ESP32
   enableLoopWDT();
 #endif
@@ -783,6 +793,7 @@ void adc_loop()
         status_updated = true;
         session_went_active = millis();
         active_clock.start();
+        idle_clock.reset();
         display.set_state(device_enabled, device_active);
         if (config.events) net.sendEvent("active");
       }
@@ -792,6 +803,7 @@ void adc_loop()
         status_updated = true;
         session_went_idle = millis();
         active_clock.stop();
+        idle_clock.reset();
         display.set_state(device_enabled, device_active);
         if (config.events) net.sendEvent("inactive");
       }
@@ -800,11 +812,31 @@ void adc_loop()
 }
 
 void loop() {
+  static bool idle_warning_given = false;
+  unsigned long idle_remaining;
 
   if (device_enabled || device_active) {
     display.session_time = session_clock.read();
     display.active_time = active_clock.read();
+    idle_remaining = config.idle_timeout - idle_clock.read();
+    display.idle_remaining = idle_remaining;
     display.draw_clocks();
+  } else {
+    idle_remaining = 0;
+    display.idle_remaining = idle_remaining;
+  }
+
+  if (config.show_idle && config.idle_warning_beep > 0 && config.idle_warning_timeout > 0) {
+    if (device_enabled && (!device_active) && (idle_remaining > 0) && (idle_remaining <= config.idle_warning_timeout)) {
+      if (!idle_warning_given) {
+        buzzer.beep(config.idle_warning_beep);
+        idle_warning_given = true;
+      }
+    } else {
+      if (idle_warning_given) {
+        idle_warning_given = false;
+      }
+    }
   }
 
   nfc.loop();

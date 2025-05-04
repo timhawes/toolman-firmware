@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2017-2024 Tim Hawes
+// SPDX-FileCopyrightText: 2017-2025 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -21,6 +21,7 @@ void Display::begin()
   _lcd->createChar(5, lcd_char_middot); // wifi icon
   _lcd->createChar(6, lcd_char_middot); // network connection icon
   _lcd->createChar(7, lcd_char_padlock_closed); // toolman status icon
+  _lcd->createChar(8, lcd_char_hourglass);
   _lcd->clear();
   _lcd->setCursor(8, 3);
   _lcd->write(5);
@@ -35,6 +36,7 @@ void Display::loop()
   static unsigned long last_freeheap;
   static unsigned long last_millis;
   static unsigned long last_uptime;
+  static unsigned long last_idle;
 
   if (freeheap_enabled) {
     if (millis() - last_freeheap > 500) {
@@ -73,6 +75,27 @@ void Display::loop()
         snprintf(t, sizeof(t), "%dd", millis() / 86400000);
         draw_left(0, 2, t, 5);
       }
+    }
+  }
+
+  if (idle_enabled) {
+    if ((long)(millis() - last_idle) > 1000) {
+      if (idle_remaining > 0) {
+        unsigned long seconds_remaining = (idle_remaining + 999) / 1000;
+        if (seconds_remaining < 60) {
+          String msg = "\x08" + String(seconds_remaining) + "s";
+          draw_left(6, 0, msg.c_str(), 4);
+        } else {
+          unsigned long minutes_remaining = (idle_remaining + 59999) / 60000;
+          if (minutes_remaining < 100) {
+            String msg = "\x08" + String(minutes_remaining) + "m";
+            draw_left(6, 0, msg.c_str(), 4);
+          } else {
+            draw_left(6, 0, "", 4);
+          }
+        }
+      }
+      last_idle = millis();
     }
   }
 

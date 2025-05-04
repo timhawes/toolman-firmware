@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2020 Tim Hawes
+// SPDX-FileCopyrightText: 2020-2025 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -279,6 +279,17 @@ uint8_t lcd_char_eh[8] = {
     0b00111,
     0b00101,
     0b00101
+};
+
+uint8_t lcd_char_hourglass[8] = {
+    0b11111,
+    0b11111,
+    0b01110,
+    0b00100,
+    0b01110,
+    0b11111,
+    0b11111,
+    0b00000
 };
 
 uint8_t lcd_char_file1[8] = {

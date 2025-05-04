@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2019-2024 Tim Hawes
+// SPDX-FileCopyrightText: 2019-2025 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -40,6 +40,8 @@ void AppConfig::LoadDefaults() {
   dev = false;
   events = true;
   idle_timeout = 600000;
+  idle_warning_beep = 100;
+  idle_warning_timeout = 60000;
   nfc_1m_limit = 60;
   nfc_5s_limit = 30;
   nfc_check_interval = 10000;
@@ -49,6 +51,7 @@ void AppConfig::LoadDefaults() {
   nfc_reset_interval = 1000;
   quiet = false;
   reboot_enabled = false;
+  show_idle = false;
   swap_buttons = false;
   token_query_timeout = 1000;
 }
@@ -163,6 +166,8 @@ bool AppConfig::LoadAppJson(const char *filename) {
   dev = root["dev"] | false;
   events = root["events"] | true;
   idle_timeout = root["idle_timeout"] | 600000;
+  idle_warning_beep = root["idle_warning_beep"] | 100;
+  idle_warning_timeout = root["idle_warning_timeout"] | 60000;
   nfc_1m_limit = root["nfc_1m_limit"] | 60;
   nfc_5s_limit = root["nfc_5s_limit"] | 30;
   nfc_check_interval = root["nfc_check_interval"] | 10000;
@@ -172,6 +177,7 @@ bool AppConfig::LoadAppJson(const char *filename) {
   nfc_reset_interval = root["nfc_reset_interval"] | 1000;
   quiet = root["quiet"] | false;
   reboot_enabled = root["reboot_enabled"] | false;
+  show_idle = root["show_idle"] | false;
   swap_buttons = root["swap_buttons"] | false;
   token_query_timeout = root["token_query_timeout"] | 1000;
 

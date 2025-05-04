@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2017-2020 Tim Hawes
+// SPDX-FileCopyrightText: 2017-2025 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -57,8 +57,10 @@ public:
   bool freeheap_enabled = false;
   bool millis_enabled = false;
   bool uptime_enabled = false;
+  bool idle_enabled = false;
   unsigned long active_time;
   unsigned long session_time;
+  unsigned long idle_remaining;
   void draw_clocks();
   void set_char(int position, uint8_t* data);
 };
