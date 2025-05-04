@@ -818,7 +818,11 @@ void loop() {
   if (device_enabled || device_active) {
     display.session_time = session_clock.read();
     display.active_time = active_clock.read();
-    idle_remaining = config.idle_timeout - idle_clock.read();
+    if (config.idle_timeout == 0) {
+      idle_remaining = 0;
+    } else {
+      idle_remaining = config.idle_timeout - idle_clock.read();
+    }
     display.idle_remaining = idle_remaining;
     display.draw_clocks();
   } else {
