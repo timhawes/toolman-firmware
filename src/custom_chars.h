@@ -430,4 +430,103 @@ uint8_t *lcd_sequence_file[] = {
     lcd_char_file6
 };
 
+uint8_t lcd_char_hourglass_ani1[8] = {
+    0b11111,
+    0b01010,
+    0b01110,
+    0b00100,
+    0b00100,
+    0b01110,
+    0b01110,
+    0b11111
+};
+
+uint8_t lcd_char_hourglass_ani2[8] = {
+    0b11111,
+    0b01110,
+    0b01010,
+    0b00100,
+    0b00100,
+    0b01110,
+    0b01110,
+    0b11111
+};
+
+uint8_t lcd_char_hourglass_ani3[8] = {
+    0b11111,
+    0b01110,
+    0b01110,
+    0b00100,
+    0b00100,
+    0b01110,
+    0b01110,
+    0b11111
+};
+
+uint8_t lcd_char_hourglass_ani4[8] = {
+    0b11111,
+    0b01110,
+    0b01110,
+    0b00100,
+    0b00100,
+    0b01010,
+    0b01110,
+    0b11111
+};
+
+uint8_t lcd_char_hourglass_ani5[8] = {
+    0b11111,
+    0b01110,
+    0b01110,
+    0b00100,
+    0b00100,
+    0b01010,
+    0b01010,
+    0b11111
+};
+
+uint8_t lcd_char_hourglass_ani6[8] = {
+    0b11110,
+    0b01111,
+    0b01111,
+    0b00110,
+    0b01100,
+    0b11010,
+    0b10110,
+    0b01111
+};
+
+uint8_t lcd_char_hourglass_ani7[8] = {
+    0b00000,
+    0b00000,
+    0b10001,
+    0b11011,
+    0b01111,
+    0b11011,
+    0b10001,
+    0b00000
+};
+
+uint8_t lcd_char_hourglass_ani8[8] = {
+    0b11110,
+    0b10010,
+    0b11110,
+    0b01100,
+    0b00110,
+    0b01111,
+    0b01111,
+    0b01111
+};
+
+uint8_t *lcd_sequence_hourglass[] = {
+    lcd_char_hourglass_ani1,
+    lcd_char_hourglass_ani2,
+    lcd_char_hourglass_ani3,
+    lcd_char_hourglass_ani4,
+    lcd_char_hourglass_ani5,
+    lcd_char_hourglass_ani6,
+    lcd_char_hourglass_ani7,
+    lcd_char_hourglass_ani8,
+};
+
 #endif
