@@ -35,6 +35,7 @@ class AppConfig {
   // app
   bool dev;
   bool events;
+  bool laser_meter;
   bool nfc_read_counter;
   bool nfc_read_sig;
   bool quiet;

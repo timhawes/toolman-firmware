@@ -22,6 +22,7 @@
 #include <ArduinoJson.h>
 #include <SimpleBuzzer.hpp>
 #include <NFCReader.hpp>
+#include <LaserMeter.hpp>
 #include <base64.hpp>
 
 #include "AppConfig.hpp"
@@ -93,6 +94,7 @@ NetThing net(1500, 4096);
 SimpleBuzzer buzzer(buzzer_pin);
 UI ui(flash_pin, button_a_pin, button_b_pin);
 PowerReader power_reader(adc_pin);
+LaserMeter laser_meter(Wire);
 
 char user_name[33];
 char last_user[33];
@@ -108,6 +110,7 @@ bool device_relay = false; // the relay *is* switched on
 bool device_active = false; // the current sensor is registering a load
 unsigned int device_milliamps = 0;
 unsigned int device_milliamps_simple = 0;
+uint64_t laser_meter_value = 0;
 
 #ifdef ESP8266
 WiFiEventHandler wifiEventConnectHandler;
@@ -531,6 +534,12 @@ void network_cmd_metrics_query(const JsonDocument &obj)
   reply["millis"] = millis();
   reply["nfc_reset_count"] = nfc.reset_count;
   reply["nfc_token_count"] = nfc.token_count;
+  reply["laser_total_us"] = laser_meter_value;
+  reply["laser_total_ms"] = laser_meter_value / (uint64_t)1000ULL;
+  reply["laser_total_s"] = laser_meter_value / (uint64_t)1000000ULL;
+  reply["laser_read_crc_errors"] = laser_meter.read_crc_errors;
+  reply["laser_read_i2c_errors"] = laser_meter.read_i2c_errors;
+  reply["laser_read_ok"] = laser_meter.read_ok;
 #ifdef LOOPMETRICS_ENABLED
   reply["loop_delays"] = loop_metrics.over_limit_count;
   reply["loop_average_interval"] = loop_metrics.average_interval;
@@ -762,6 +771,39 @@ void setup()
 #endif
 }
 
+void laser_meter_loop()
+{
+  static unsigned long last_read;
+  static uint64_t last_counter;
+
+  if (!config.laser_meter) {
+    return;
+  }
+
+  if ((long)(millis() - last_read) > 1000) {
+    last_read = millis();
+    if (laser_meter.read()) {
+      laser_meter_value = laser_meter.getTotalMicroseconds();
+    //   uint16_t current_ds = laser_meter.getCurrentDeciseconds();
+    //   uint64_t counter_change = laser_meter_value - last_counter;
+    //   last_counter = laser_meter_value;
+    //   Serial.print("laser meter ");
+    //   Serial.print((uint32_t)laser_meter_value, DEC);
+    //   Serial.print(" ");
+    //   Serial.print(current_ds, DEC);
+    //   Serial.print(" +");
+    //   Serial.print((uint32_t)counter_change, DEC);
+    //   if (laser_meter.isActive()) {
+    //     Serial.println(" [active]");
+    //   } else {
+    //     Serial.println(" [off]");
+    //   }
+    // } else {
+    //   Serial.println("laser meter [read failed]");
+    }
+  }
+}
+
 void adc_loop()
 {
   static unsigned long last_read;
@@ -843,6 +885,7 @@ void loop() {
   display.loop();
   ui.loop();
   adc_loop();
+  laser_meter_loop();
   net.loop();
 
   if (device_enabled == true && device_active == false && config.idle_timeout != 0) {
