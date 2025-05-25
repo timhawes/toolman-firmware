@@ -51,11 +51,11 @@ bool LaserMeter::read()
             read_crc_errors++;
             return false;
         }
-      } else {
+    } else {
         // i2c incorrect number of bytes available
         read_i2c_errors++;
         return false;
-      }
+    }
 }
 
 uint64_t LaserMeter::getTotalMicroseconds()
