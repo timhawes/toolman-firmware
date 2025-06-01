@@ -18,6 +18,7 @@ private:
     uint16_t current_ds = 0; // current deciseconds as retrieved
     uint64_t last_us = 0; // last value of total_us that we saw
     uint64_t session_us = 0; // time for this session (resettable)
+    bool was_active = false;
     void update_session();
 public:
     uint32_t read_crc_errors = 0;
@@ -27,7 +28,8 @@ public:
     bool read();
     uint64_t getTotalMicroseconds();
     uint16_t getCurrentDeciseconds();
-    bool isActive();
+    bool isActive(); // was active at the point of the last read
+    bool wasActive(); // was active between last two reads
     void resetSession();
     uint64_t getSessionMicroseconds();
 };

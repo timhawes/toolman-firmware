@@ -65,7 +65,12 @@ void LaserMeter::update_session()
     last_us = total_us;
     if (since_last_update > 0) {
         session_us += since_last_update;
+        was_active = true;
+    } else if (since_last_update == 0) {
+        was_active = false;
     }
+    // else: if since_last_update < 0 then there must have been a reset or a rollover
+    // leave was_active unchanged as we can't be sure what happened
 }
 
 uint64_t LaserMeter::getTotalMicroseconds()
@@ -81,6 +86,15 @@ uint16_t LaserMeter::getCurrentDeciseconds()
 bool LaserMeter::isActive()
 {
     if (current_ds != 65535) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool LaserMeter::wasActive()
+{
+    if (current_ds != 65535 || was_active) {
         return true;
     } else {
         return false;

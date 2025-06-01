@@ -777,7 +777,6 @@ void device_goes_active()
   status_updated = true;
   session_went_active = millis();
   active_clock.start();
-  idle_clock.reset();
   display.set_state(device_enabled, device_active);
   if (config.events) net.sendEvent("active");
 }
@@ -787,24 +786,30 @@ void device_goes_inactive()
   device_active = false;
   status_updated = true;
   active_clock.stop();
-  idle_clock.reset();
   display.set_state(device_enabled, device_active);
   if (config.events) net.sendEvent("inactive");
 }
 
 void laser_meter_loop()
 {
+  static bool first_run = true;
   static unsigned long last_read;
-  static uint64_t last_session_microseconds;
 
   if (!config.laser_meter) {
     return;
   }
 
+  if (first_run) {
+    // zero the counters
+    laser_meter.read();
+    first_run = false;
+  }
+
   if ((long)(millis() - last_read) > config.laser_meter_interval) {
     last_read = millis();
     if (laser_meter.read()) {
-      if (laser_meter.isActive()) {
+      if (laser_meter.wasActive()) {
+        idle_clock.reset();
         if (device_enabled && !device_active) {
           device_goes_active();
         }
@@ -813,11 +818,6 @@ void laser_meter_loop()
           device_goes_inactive();
         }
       }
-      // reset the idle clock even for short bursts of activity
-      if (laser_meter.getSessionMicroseconds() > last_session_microseconds) {
-        idle_clock.reset();
-      }
-      last_session_microseconds = laser_meter.getSessionMicroseconds();
     }
   }
 }
@@ -847,13 +847,14 @@ void adc_loop()
     }
 
     if (device_milliamps > config.active_threshold) {
-      if (device_enabled && !device_active) {
+      idle_clock.reset();
+      if (device_enabled && !device_active && !config.laser_meter) {
         // only mark as active is it supposed to be enabled
         // otherwise, it's probably noise
         device_goes_active();
       }
     } else {
-      if (device_active) {
+      if (device_active && !config.laser_meter) {
         device_goes_inactive();
       }
     }
