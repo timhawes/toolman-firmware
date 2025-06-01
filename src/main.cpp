@@ -110,7 +110,6 @@ bool device_relay = false; // the relay *is* switched on
 bool device_active = false; // the current sensor is registering a load
 unsigned int device_milliamps = 0;
 unsigned int device_milliamps_simple = 0;
-uint64_t laser_meter_value = 0;
 
 #ifdef ESP8266
 WiFiEventHandler wifiEventConnectHandler;
@@ -536,9 +535,8 @@ void network_cmd_metrics_query(const JsonDocument &obj)
   reply["millis"] = millis();
   reply["nfc_reset_count"] = nfc.reset_count;
   reply["nfc_token_count"] = nfc.token_count;
-  reply["laser_total_us"] = laser_meter_value;
-  reply["laser_total_ms"] = laser_meter_value / (uint64_t)1000ULL;
-  reply["laser_total_s"] = laser_meter_value / (uint64_t)1000000ULL;
+  reply["laser_total_us"] = laser_meter.getTotalMicroseconds();
+  reply["laser_session_us"] = laser_meter.getSessionMicroseconds();
   reply["laser_read_crc_errors"] = laser_meter.read_crc_errors;
   reply["laser_read_i2c_errors"] = laser_meter.read_i2c_errors;
   reply["laser_read_ok"] = laser_meter.read_ok;
@@ -806,7 +804,6 @@ void laser_meter_loop()
   if ((long)(millis() - last_read) > config.laser_meter_interval) {
     last_read = millis();
     if (laser_meter.read()) {
-      laser_meter_value = laser_meter.getTotalMicroseconds();
       if (laser_meter.isActive()) {
         if (device_enabled && !device_active) {
           device_goes_active();
