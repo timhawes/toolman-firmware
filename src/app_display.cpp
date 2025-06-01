@@ -123,7 +123,9 @@ void Display::set_device(const char *name)
 {
   strncpy(device_name, name, sizeof(device_name));
   device_name[sizeof(device_name)-1] = '\0';
-  draw_left(0, 0, name, 20);
+  if (state_enabled == false && state_active == false) {
+    draw_left(0, 0, name, 20);
+  }
 }
 
 void Display::set_network(bool wifi_up, bool tcp_up, bool ready)
