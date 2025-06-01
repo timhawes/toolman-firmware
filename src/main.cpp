@@ -803,7 +803,7 @@ void laser_meter_loop()
     return;
   }
 
-  if ((long)(millis() - last_read) > 500) {
+  if ((long)(millis() - last_read) > config.laser_meter_interval) {
     last_read = millis();
     if (laser_meter.read()) {
       laser_meter_value = laser_meter.getTotalMicroseconds();

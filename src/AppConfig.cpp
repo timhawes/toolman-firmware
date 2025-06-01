@@ -43,6 +43,7 @@ void AppConfig::LoadDefaults() {
   idle_warning_beep = 100;
   idle_warning_timeout = 60000;
   laser_meter = false;
+  laser_meter_interval = 1000;
   nfc_1m_limit = 60;
   nfc_5s_limit = 30;
   nfc_check_interval = 10000;
@@ -170,6 +171,7 @@ bool AppConfig::LoadAppJson(const char *filename) {
   idle_warning_beep = root["idle_warning_beep"] | 100;
   idle_warning_timeout = root["idle_warning_timeout"] | 60000;
   laser_meter = root["laser_meter"] | false;
+  laser_meter_interval = root["laser_meter_interval"] | 1000;
   nfc_1m_limit = root["nfc_1m_limit"] | 60;
   nfc_5s_limit = root["nfc_5s_limit"] | 30;
   nfc_check_interval = root["nfc_check_interval"] | 10000;

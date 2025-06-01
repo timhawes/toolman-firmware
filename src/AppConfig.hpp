@@ -56,6 +56,7 @@ class AppConfig {
   long adc_interval;
   long idle_timeout;
   long idle_warning_timeout;
+  long laser_meter_interval;
   long token_query_timeout;
   void LoadDefaults();
   bool LoadWifiJson(const char *filename = WIFI_JSON_FILENAME);
