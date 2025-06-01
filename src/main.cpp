@@ -195,6 +195,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       session_clock.reset();
       session_clock.start();
       active_clock.reset();
+      laser_meter.resetSession();
       idle_clock.reset();
       display.message("Access Granted", 2000);
       display.set_state(device_enabled, false);
@@ -226,6 +227,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       session_clock.reset();
       session_clock.start();
       active_clock.reset();
+      laser_meter.resetSession();
       idle_clock.reset();
       display.message("Access Granted", 2000);
       display.set_state(device_enabled, false);
@@ -771,35 +773,54 @@ void setup()
 #endif
 }
 
+void device_goes_active()
+{
+  device_active = true;
+  status_updated = true;
+  session_went_active = millis();
+  active_clock.start();
+  idle_clock.reset();
+  display.set_state(device_enabled, device_active);
+  if (config.events) net.sendEvent("active");
+}
+
+void device_goes_inactive()
+{
+  device_active = false;
+  status_updated = true;
+  active_clock.stop();
+  idle_clock.reset();
+  display.set_state(device_enabled, device_active);
+  if (config.events) net.sendEvent("inactive");
+}
+
 void laser_meter_loop()
 {
   static unsigned long last_read;
-  static uint64_t last_counter;
+  static uint64_t last_session_microseconds;
 
   if (!config.laser_meter) {
     return;
   }
 
-  if ((long)(millis() - last_read) > 1000) {
+  if ((long)(millis() - last_read) > 500) {
     last_read = millis();
     if (laser_meter.read()) {
       laser_meter_value = laser_meter.getTotalMicroseconds();
-    //   uint16_t current_ds = laser_meter.getCurrentDeciseconds();
-    //   uint64_t counter_change = laser_meter_value - last_counter;
-    //   last_counter = laser_meter_value;
-    //   Serial.print("laser meter ");
-    //   Serial.print((uint32_t)laser_meter_value, DEC);
-    //   Serial.print(" ");
-    //   Serial.print(current_ds, DEC);
-    //   Serial.print(" +");
-    //   Serial.print((uint32_t)counter_change, DEC);
-    //   if (laser_meter.isActive()) {
-    //     Serial.println(" [active]");
-    //   } else {
-    //     Serial.println(" [off]");
-    //   }
-    // } else {
-    //   Serial.println("laser meter [read failed]");
+      if (laser_meter.isActive()) {
+        if (device_enabled && !device_active) {
+          device_goes_active();
+        }
+      } else {
+        if (device_active) {
+          device_goes_inactive();
+        }
+      }
+      // reset the idle clock even for short bursts of activity
+      if (laser_meter.getSessionMicroseconds() > last_session_microseconds) {
+        idle_clock.reset();
+      }
+      last_session_microseconds = laser_meter.getSessionMicroseconds();
     }
   }
 }
@@ -810,7 +831,7 @@ void adc_loop()
 
   if (config.adc_interval == 0 ||
       config.active_threshold == 0) {
-    if (device_active == true) {
+    if (device_active == true && !config.laser_meter) {
       device_active = false;
       device_milliamps = 0;
       device_milliamps_simple = 0;
@@ -824,26 +845,19 @@ void adc_loop()
     display.set_current(device_milliamps);
     last_read = millis();
 
+    if (config.laser_meter) {
+      return;
+    }
+
     if (device_milliamps > config.active_threshold) {
       if (device_enabled && !device_active) {
         // only mark as active is it supposed to be enabled
         // otherwise, it's probably noise
-        device_active = true;
-        status_updated = true;
-        session_went_active = millis();
-        active_clock.start();
-        idle_clock.reset();
-        display.set_state(device_enabled, device_active);
-        if (config.events) net.sendEvent("active");
+        device_goes_active();
       }
     } else {
       if (device_active) {
-        device_active = false;
-        status_updated = true;
-        active_clock.stop();
-        idle_clock.reset();
-        display.set_state(device_enabled, device_active);
-        if (config.events) net.sendEvent("inactive");
+        device_goes_inactive();
       }
     }
   }
@@ -855,7 +869,11 @@ void loop() {
 
   if (device_enabled || device_active) {
     display.session_time = session_clock.read();
-    display.active_time = active_clock.read();
+    if (config.laser_meter) {
+      display.active_time = laser_meter.getSessionMicroseconds() / 1000;
+    } else {
+      display.active_time = active_clock.read();
+    }
     if (config.idle_timeout == 0) {
       idle_remaining = 0;
     } else {

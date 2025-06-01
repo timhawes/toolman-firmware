@@ -45,6 +45,7 @@ bool LaserMeter::read()
             total_us = new_total_us;
             current_ds = new_current_ds;
             read_ok++;
+            update_session();
             return true;
         } else {
             // crc failed
@@ -55,6 +56,15 @@ bool LaserMeter::read()
         // i2c incorrect number of bytes available
         read_i2c_errors++;
         return false;
+    }
+}
+
+void LaserMeter::update_session()
+{
+    int64_t since_last_update = total_us - last_us;
+    last_us = total_us;
+    if (since_last_update > 0) {
+        session_us += since_last_update;
     }
 }
 
@@ -75,4 +85,14 @@ bool LaserMeter::isActive()
     } else {
         return false;
     }
+}
+
+void LaserMeter::resetSession()
+{
+    session_us = 0;
+}
+
+uint64_t LaserMeter::getSessionMicroseconds()
+{
+    return session_us;
 }
