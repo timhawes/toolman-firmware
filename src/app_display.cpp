@@ -78,23 +78,9 @@ void Display::loop()
     }
   }
 
-  if (idle_enabled) {
+  if (idle_enabled && state_enabled && !state_active) {
     if ((long)(millis() - last_idle) > 1000) {
-      if (idle_remaining > 0) {
-        unsigned long seconds_remaining = (idle_remaining + 999) / 1000;
-        if (seconds_remaining < 60) {
-          String msg = "\x08" + String(seconds_remaining) + "s";
-          draw_left(6, 0, msg.c_str(), 4);
-        } else {
-          unsigned long minutes_remaining = (idle_remaining + 59999) / 60000;
-          if (minutes_remaining < 100) {
-            String msg = "\x08" + String(minutes_remaining) + "m";
-            draw_left(6, 0, msg.c_str(), 4);
-          } else {
-            draw_left(6, 0, "", 4);
-          }
-        }
-      }
+      draw_idle_time();
       last_idle = millis();
     }
   }
@@ -166,6 +152,8 @@ void Display::set_network(bool wifi_up, bool tcp_up, bool ready)
 
 void Display::set_state(bool enabled, bool active)
 {
+  state_enabled = enabled;
+  state_active = active;
   _lcd->setCursor(10, 3);
   _lcd->write(7);
   if (enabled) {
@@ -176,6 +164,7 @@ void Display::set_state(bool enabled, bool active)
     } else {
       _lcd->createChar(7, lcd_char_pause);
       draw_left(0, 0, "Ready", 12);
+      draw_idle_time();
       draw_right(12, 3, "Logout", 8);
     }
   } else { // not enabled
@@ -341,6 +330,25 @@ void Display::draw_clocks()
     draw_right(11, 1, t, 9);
     prev_session_seconds = session_seconds;
     prev_active_seconds = active_seconds;
+  }
+}
+
+void Display::draw_idle_time()
+{
+  if (idle_remaining > 0) {
+    unsigned long seconds_remaining = (idle_remaining + 999) / 1000;
+    if (seconds_remaining < 60) {
+      String msg = "\x08" + String(seconds_remaining) + "s";
+      draw_left(6, 0, msg.c_str(), 4);
+    } else {
+      unsigned long minutes_remaining = (idle_remaining + 59999) / 60000;
+      if (minutes_remaining < 100) {
+        String msg = "\x08" + String(minutes_remaining) + "m";
+        draw_left(6, 0, msg.c_str(), 4);
+      } else {
+        draw_left(6, 0, "", 4);
+      }
+    }
   }
 }
 

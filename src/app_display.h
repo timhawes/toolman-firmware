@@ -27,6 +27,8 @@ private:
   long flashing_interval = 750;
   unsigned int attempts = 0;
   bool restarting = false;
+  bool state_enabled = false;
+  bool state_active = false;
 public:
   Display(LiquidCrystal_I2C &lcd);
   void begin();
@@ -62,6 +64,7 @@ public:
   unsigned long session_time;
   unsigned long idle_remaining;
   void draw_clocks();
+  void draw_idle_time();
   void set_char(int position, uint8_t* data);
 };
 
