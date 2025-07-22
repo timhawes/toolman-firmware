@@ -189,6 +189,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       digitalWrite(relay_pin, HIGH);
       device_relay = true;
       status_updated = true;
+      net.setLoopWatchdog(config.loop_watchdog_busy_timeout);
       session_start = millis();
       session_went_active = session_start;
       session_clock.reset();
@@ -221,6 +222,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       digitalWrite(relay_pin, HIGH);
       device_relay = true;
       status_updated = true;
+      net.setLoopWatchdog(config.loop_watchdog_busy_timeout);
       session_start = millis();
       session_went_active = session_start;
       session_clock.reset();
@@ -742,6 +744,7 @@ void setup()
 
   power_reader.begin();
 
+  net.setLoopWatchdog(config.loop_watchdog_idle_timeout);
   net.onConnect(network_connect_callback);
   net.onDisconnect(network_disconnect_callback);
   net.onRestartRequest(network_restart_callback);
@@ -916,6 +919,7 @@ void loop() {
   if (device_relay == true && device_enabled == false && device_active == false) {
     digitalWrite(relay_pin, LOW);
     device_relay = false;
+    net.setLoopWatchdog(config.loop_watchdog_idle_timeout);
   }
 
   if (status_updated) {
