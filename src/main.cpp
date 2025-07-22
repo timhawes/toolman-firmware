@@ -352,6 +352,11 @@ void load_app_config()
   power_reader.setCalibration(config.ct_cal);
   power_reader.setRatio(config.ct_ratio);
   power_reader.setResistor(config.ct_resistor);
+  if (device_relay) {
+    net.setLoopWatchdog(config.loop_watchdog_busy_timeout);
+  } else {
+    net.setLoopWatchdog(config.loop_watchdog_idle_timeout);
+  }
 }
 
 void load_config()
