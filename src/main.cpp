@@ -20,6 +20,7 @@
 
 #ifdef ESP32
 #include <esp_task_wdt.h>
+#include <esp_mac.h>
 #endif
 
 #include <ArduinoJson.h>
@@ -724,10 +725,12 @@ void setup()
   }
 
 #ifdef ESP32
-  enableCore0WDT();
-#ifndef CONFIG_FREERTOS_UNICORE
-  enableCore1WDT();
-#endif
+  #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+    enableCore0WDT();
+    #ifndef CONFIG_FREERTOS_UNICORE
+      enableCore1WDT();
+    #endif
+  #endif
 #endif
 
   power_reader.begin();
