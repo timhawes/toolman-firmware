@@ -12,11 +12,13 @@
 #else
 #include <WebServer.h>
 #endif
+#include <FS.h>
 #include "config.h"
 
 class SetupMode
 {
 private:
+  fs::FS &_fs;
   const char *_ssid;
   const char *_password;
 #ifdef ESP32
@@ -30,7 +32,7 @@ private:
   void configRootHandler();
   void configUpdateHandler();
 public:
-  SetupMode(const char *ssid, const char *password);
+  SetupMode(fs::FS &fs, const char *ssid, const char *password);
 #ifdef ESP32
   void setWatchdogFeed(bool enabled);
 #endif

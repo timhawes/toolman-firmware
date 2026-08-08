@@ -8,10 +8,9 @@
 #ifdef ESP8266
 #include "app_util.h"
 #else
-#include "SPIFFS.h"
 #endif
 
-AppConfig::AppConfig() {
+AppConfig::AppConfig(fs::FS &fs) : _fs(fs) {
   LoadDefaults();
   LoadOverrides();
 }
@@ -61,7 +60,7 @@ void AppConfig::LoadOverrides() {
 }
 
 bool AppConfig::LoadWifiJson(const char *filename) {
-  File file = SPIFFS.open(filename, "r");
+  File file = _fs.open(filename, "r");
   if (!file) {
     Serial.println("AppConfig: wifi file not found");
     LoadOverrides();
@@ -90,7 +89,7 @@ bool AppConfig::LoadWifiJson(const char *filename) {
 }
 
 bool AppConfig::LoadNetJson(const char *filename) {
-  File file = SPIFFS.open(filename, "r");
+  File file = _fs.open(filename, "r");
   if (!file) {
     Serial.println("AppConfig: net file not found");
     LoadOverrides();
@@ -138,7 +137,7 @@ bool AppConfig::LoadNetJson(const char *filename) {
 }
 
 bool AppConfig::LoadAppJson(const char *filename) {
-  File file = SPIFFS.open(filename, "r");
+  File file = _fs.open(filename, "r");
   if (!file) {
     Serial.println("AppConfig: app file not found");
     LoadOverrides();

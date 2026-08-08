@@ -10,9 +10,12 @@
 #else
 #include <WiFi.h>
 #endif
-#include <FS.h>
-#ifdef ESP32
-#include <SPIFFS.h>
+
+#ifdef ESP8266
+#define FILESYSTEM SPIFFS
+#else
+#include <LittleFS.h>
+#define FILESYSTEM LittleFS
 #endif
 
 #ifdef ESP32
@@ -82,7 +85,7 @@ char clientid[15];
 char hostname[25];
 
 // config
-AppConfig config;
+AppConfig config(FILESYSTEM);
 
 PN532_I2C pn532i2c(Wire);
 PN532 pn532(pn532i2c);
@@ -208,7 +211,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
     return;
   }
 
-  TokenDB tokendb(TOKENS_FILENAME);
+  TokenDB tokendb(FILESYSTEM, TOKENS_FILENAME);
   if (tokendb.lookup(uid)) {
     if (tokendb.get_access_level() > 0) {
       strncpy(user_name, tokendb.get_user().c_str(), sizeof(user_name));
@@ -374,7 +377,7 @@ void button_callback(uint8_t button, bool state)
 #else
         delay(500);
 #endif
-        SetupMode setup_mode(hostname, SETUP_PASSWORD);
+        SetupMode setup_mode(FILESYSTEM, hostname, SETUP_PASSWORD);
 #ifdef ESP32
         setup_mode.setWatchdogFeed(true);
 #endif
@@ -575,7 +578,7 @@ void network_cmd_token_info(const JsonDocument &obj)
 #ifdef TOKENDB_DEBUG
 void network_cmd_tokendb_query(const JsonDocument &obj)
 {
-  TokenDB tokendb(TOKENS_FILENAME);
+  TokenDB tokendb(FILESYSTEM, TOKENS_FILENAME);
 
   unsigned long start = millis();
   bool found = tokendb.lookup(obj["uid"] | "");
@@ -697,26 +700,22 @@ void setup()
   Wire.begin(sda_pin, scl_pin);
   buzzer.begin();
   display.begin();
-#ifdef ESP8266
-  if (!SPIFFS.begin()) {
-#else
-  if (!SPIFFS.begin(true)) {
-#endif
-    Serial.println("SPIFFS.begin() failed");
+  if (!FILESYSTEM.begin()) {
+    Serial.println("FS.begin() failed");
   }
 
 #ifdef ESP8266
   fix_filenames();
 #endif
 
-  if (SPIFFS.exists(WIFI_JSON_FILENAME) && SPIFFS.exists(NET_JSON_FILENAME)) {
+  if (FILESYSTEM.exists(WIFI_JSON_FILENAME) && FILESYSTEM.exists(NET_JSON_FILENAME)) {
     load_config();
   } else {
     Serial.println("config is missing, entering setup mode");
     display.setup_mode(hostname);
     net.stop();
     delay(1000);
-    SetupMode setup_mode(hostname, SETUP_PASSWORD);
+    SetupMode setup_mode(FILESYSTEM, hostname, SETUP_PASSWORD);
 #ifdef ESP32
     setup_mode.setWatchdogFeed(false);
 #endif

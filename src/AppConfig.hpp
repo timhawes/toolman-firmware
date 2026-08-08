@@ -6,11 +6,14 @@
 #define APPCONFIG_HPP
 
 #include <Arduino.h>
+#include <FS.h>
 #include "config.h"
 
 class AppConfig {
+ private:
+  fs::FS &_fs;
  public:
-  AppConfig();
+  AppConfig(fs::FS &fs);
   // wifi
   char ssid[33];
   char wpa_password[64];
