@@ -701,7 +701,7 @@ void setup()
   Wire.begin(sda_pin, scl_pin);
   buzzer.begin();
   display.begin();
-  if (!FILESYSTEM.begin()) {
+  if (!FILESYSTEM.begin(true)) {
     Serial.println("FS.begin() failed");
   }
 
