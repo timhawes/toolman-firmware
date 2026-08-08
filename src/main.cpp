@@ -701,7 +701,11 @@ void setup()
   Wire.begin(sda_pin, scl_pin);
   buzzer.begin();
   display.begin();
+#ifdef ESP8266
+  if (!FILESYSTEM.begin()) {
+#else
   if (!FILESYSTEM.begin(true)) {
+#endif
     Serial.println("FS.begin() failed");
   }
 
