@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2018-2024 Tim Hawes
+// SPDX-FileCopyrightText: 2018-2026 Tim Hawes
 //
 // SPDX-License-Identifier: MIT
 

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2019-2025 Tim Hawes
+// SPDX-FileCopyrightText: 2019-2026 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
