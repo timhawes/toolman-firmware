@@ -65,6 +65,11 @@ jobs:
             fi
           fi
         done
+    - name: Inventory
+      run: |
+        ls -l
+        md5sum *
+      working-directory: firmware
     - uses: actions/upload-artifact@v7
       with:
         name: firmware
