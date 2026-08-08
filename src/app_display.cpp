@@ -166,7 +166,9 @@ void Display::set_state(bool enabled, bool active)
     } else {
       _lcd->createChar(7, lcd_char_pause);
       draw_left(0, 0, "Ready", 12);
-      draw_idle_time();
+      if (idle_enabled) {
+        draw_idle_time();
+      }
       draw_right(12, 3, "Logout", 8);
     }
   } else { // not enabled
