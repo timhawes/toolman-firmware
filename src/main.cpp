@@ -29,7 +29,11 @@
 #include <base64.hpp>
 
 #include "AppConfig.hpp"
+#ifdef ESP8266
 #include "PowerReader.hpp"
+#else
+#include "ESP32PowerMonitor.hpp"
+#endif
 #include "app_display.h"
 #include "NetThing.hpp"
 #include "app_setup.h"
@@ -96,7 +100,11 @@ Display display(lcd);
 NetThing net(1500, 4096);
 SimpleBuzzer buzzer(buzzer_pin);
 UI ui(flash_pin, button_a_pin, button_b_pin);
+#ifdef ESP8266
 PowerReader power_reader(adc_pin);
+#else
+ESP32PowerMonitor power_reader(adc_pin);
+#endif
 
 char user_name[33];
 char last_user[33];
@@ -115,6 +123,9 @@ bool device_active = false; // the current sensor is registering a load
 unsigned int device_milliamps = 0;
 unsigned int device_milliamps_simple = 0;
 unsigned long last_sync_activity_time = 0;
+#ifdef ESP32
+unsigned int power_offset_millivolts = 0;
+#endif
 
 #ifdef ESP8266
 WiFiEventHandler wifiEventConnectHandler;
@@ -165,12 +176,17 @@ void send_state()
     }
   }
 
-  StaticJsonDocument<JSON_OBJECT_SIZE(7)> obj;
+  StaticJsonDocument<JSON_OBJECT_SIZE(8)> obj;
   obj["cmd"] = "state_info";
   obj["state"] = state;
   obj["user"] = (const char*)user_name;
   obj["milliamps"] = device_milliamps;
+#ifdef ESP8266
   obj["milliamps_simple"] = device_milliamps_simple;
+#else
+  obj["power_offset_millivolts"] = power_offset_millivolts;
+  obj["power_overflow_count"] = power_reader.readOverflowCount();
+#endif
   obj["active_time"] = active_time;
   obj["idle_time"] = idle_time;
   net.sendJson(obj);
@@ -353,6 +369,10 @@ void load_app_config()
   power_reader.setCalibration(config.ct_cal);
   power_reader.setRatio(config.ct_ratio);
   power_reader.setResistor(config.ct_resistor);
+#ifdef ESP32
+  power_reader.setOffsetAlpha(config.adc_offset_alpha);
+  power_reader.setSamplePeriod(config.adc_interval);
+#endif
 }
 
 void load_config()
@@ -791,9 +811,15 @@ void adc_loop()
     return;
   }
 
+#ifdef ESP8266
   if ((long)(millis() - last_read) > config.adc_interval) {
     device_milliamps = power_reader.readRMSCurrent() * 1000;
     device_milliamps_simple = power_reader.readRMSEquivalentCurrent() * 1000;
+#else
+  if (power_reader.ready()) {
+    device_milliamps = power_reader.readRMSCurrentMilliamps();
+    power_offset_millivolts = power_reader.readOffsetMillivolts();
+#endif
     display.set_current(device_milliamps);
     last_read = millis();
 

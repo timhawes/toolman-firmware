@@ -45,6 +45,7 @@ class AppConfig {
   bool show_idle;
   bool swap_buttons;
   char name[21];
+  float adc_offset_alpha;
   float ct_cal;
   float ct_ratio;
   float ct_resistor;
