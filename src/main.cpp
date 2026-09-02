@@ -366,8 +366,8 @@ void load_app_config()
   power_reader.setCalibration(config.ct_cal);
   power_reader.setRatio(config.ct_ratio);
   power_reader.setResistor(config.ct_resistor);
-#ifdef ESP32
   power_reader.setOffsetAlpha(config.adc_offset_alpha);
+#ifdef ESP32
   power_reader.setSamplePeriod(config.adc_interval);
 #endif
 }

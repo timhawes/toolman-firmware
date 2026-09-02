@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2019-2023 Tim Hawes
+// SPDX-FileCopyrightText: 2019-2026 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -49,7 +49,7 @@ float PowerReader::readRMSCurrent() {
     sample_count++;
 
     // low-pass filter to track 0V DC bias
-    offset = (offset + (sample - offset) / offset_samples);
+    offset += (sample - offset) * offset_filter_alpha;
 
     filtered = sample - offset;
     total += (filtered * filtered);
@@ -101,6 +101,10 @@ float PowerReader::readRMSEquivalentCurrent()
 
 void PowerReader::setCalibration(float _cal) {
   cal = _cal;
+}
+
+void PowerReader::setOffsetAlpha(float alpha) {
+  offset_filter_alpha = alpha;
 }
 
 void PowerReader::setRatio(float _ratio) {
