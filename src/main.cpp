@@ -114,15 +114,12 @@ unsigned long pending_token_time = 0;
 
 bool firmware_restart_pending = false;
 bool restart_pending = false;
-bool wifi_change_pending = false;
-bool net_change_pending = false;
 uint16_t restart_reason = 0;
 bool device_enabled = false; // the relay should be switched on
 bool device_relay = false; // the relay *is* switched on
 bool device_active = false; // the current sensor is registering a load
 unsigned int device_milliamps = 0;
 unsigned int device_milliamps_simple = 0;
-unsigned long last_sync_activity_time = 0;
 #ifdef ESP32
 unsigned int power_offset_millivolts = 0;
 #endif
@@ -488,8 +485,6 @@ void network_transfer_status_callback(const char *filename, int progress, bool a
 {
   static int previous_progress = 0;
 
-  last_sync_activity_time = millis();
-
   if (strcmp("firmware", filename) == 0) {
     if (previous_progress != progress) {
       Serial.print("firmware install ");
@@ -501,12 +496,10 @@ void network_transfer_status_callback(const char *filename, int progress, bool a
   }
 
   if (changed && strcmp(WIFI_JSON_FILENAME, filename) == 0) {
-    wifi_change_pending = true;
-    Serial.println("wifi update scheduled");
+    load_wifi_config();
   }
   if (changed && strcmp(NET_JSON_FILENAME, filename) == 0) {
-    net_change_pending = true;
-    Serial.println("net update scheduled");
+    load_net_config();
   }
   if (changed && strcmp(APP_JSON_FILENAME, filename) == 0) {
     load_app_config();
@@ -927,21 +920,6 @@ void loop() {
       delay(1000);
       Serial.println("restarting now!");
       net.restartWithReason(restart_reason);
-    }
-  }
-
-  if (wifi_change_pending || net_change_pending) {
-    if ((long)(millis() - last_sync_activity_time) > 5000) {
-      if (wifi_change_pending) {
-        wifi_change_pending = false;
-        Serial.println("updating wifi");
-        load_wifi_config();
-      }
-      if (net_change_pending) {
-        net_change_pending = false;
-        Serial.println("updating net");
-        load_net_config();
-      }
     }
   }
 
