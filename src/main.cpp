@@ -749,7 +749,6 @@ void setup()
 
   power_reader.begin();
 
-  net.setLoopWatchdog(config.loop_watchdog_idle_timeout);
   net.onConnect(network_connect_callback);
   net.onDisconnect(network_disconnect_callback);
   net.onRestartRequest(network_restart_callback);
