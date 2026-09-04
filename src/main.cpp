@@ -207,6 +207,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       digitalWrite(relay_pin, HIGH);
       device_relay = true;
       status_updated = true;
+      net.setLoopWatchdog(config.loop_watchdog_busy_timeout);
       session_start = millis();
       session_went_active = session_start;
       session_clock.reset();
@@ -238,6 +239,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
       digitalWrite(relay_pin, HIGH);
       device_relay = true;
       status_updated = true;
+      net.setLoopWatchdog(config.loop_watchdog_busy_timeout);
       session_start = millis();
       session_went_active = session_start;
       session_clock.reset();
@@ -370,6 +372,11 @@ void load_app_config()
 #ifdef ESP32
   power_reader.setSamplePeriod(config.adc_interval);
 #endif
+  if (device_relay) {
+    net.setLoopWatchdog(config.loop_watchdog_busy_timeout);
+  } else {
+    net.setLoopWatchdog(config.loop_watchdog_idle_timeout);
+  }
 }
 
 void load_config()
@@ -895,6 +902,7 @@ void loop() {
   if (device_relay == true && device_enabled == false && device_active == false) {
     digitalWrite(relay_pin, LOW);
     device_relay = false;
+    net.setLoopWatchdog(config.loop_watchdog_idle_timeout);
   }
 
   if (status_updated) {

@@ -42,6 +42,8 @@ void AppConfig::LoadDefaults() {
   idle_timeout = 600000;
   idle_warning_beep = 100;
   idle_warning_timeout = 60000;
+  loop_watchdog_busy_timeout = 60000;
+  loop_watchdog_idle_timeout = 60000;
   nfc_1m_limit = 60;
   nfc_5s_limit = 30;
   nfc_check_interval = 10000;
@@ -169,6 +171,8 @@ bool AppConfig::LoadAppJson(const char *filename) {
   idle_timeout = root["idle_timeout"] | 600000;
   idle_warning_beep = root["idle_warning_beep"] | 100;
   idle_warning_timeout = root["idle_warning_timeout"] | 60000;
+  loop_watchdog_busy_timeout = root["loop_watchdog_busy_timeout"] | 60000;
+  loop_watchdog_idle_timeout = root["loop_watchdog_idle_timeout"] | 60000;
   nfc_1m_limit = root["nfc_1m_limit"] | 60;
   nfc_5s_limit = root["nfc_5s_limit"] | 30;
   nfc_check_interval = root["nfc_check_interval"] | 10000;
