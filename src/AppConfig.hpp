@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2019-2025 Tim Hawes
+// SPDX-FileCopyrightText: 2019-2026 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -6,11 +6,14 @@
 #define APPCONFIG_HPP
 
 #include <Arduino.h>
+#include <FS.h>
 #include "config.h"
 
 class AppConfig {
+ private:
+  fs::FS &_fs;
  public:
-  AppConfig();
+  AppConfig(fs::FS &fs);
   // wifi
   char ssid[33];
   char wpa_password[64];
@@ -43,6 +46,7 @@ class AppConfig {
   bool show_idle;
   bool swap_buttons;
   char name[21];
+  float adc_offset_alpha;
   float ct_cal;
   float ct_ratio;
   float ct_resistor;

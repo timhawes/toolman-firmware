@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2019-2025 Tim Hawes
+// SPDX-FileCopyrightText: 2019-2026 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -8,10 +8,9 @@
 #ifdef ESP8266
 #include "app_util.h"
 #else
-#include "SPIFFS.h"
 #endif
 
-AppConfig::AppConfig() {
+AppConfig::AppConfig(fs::FS &fs) : _fs(fs) {
   LoadDefaults();
   LoadOverrides();
 }
@@ -35,6 +34,7 @@ void AppConfig::LoadDefaults() {
   active_threshold = 500;
   adc_interval = 1000;
   ct_cal = 1.0;
+  adc_offset_alpha = 0.001;
   ct_ratio = 1.0;
   ct_resistor = 1.0;
   dev = false;
@@ -65,7 +65,7 @@ void AppConfig::LoadOverrides() {
 }
 
 bool AppConfig::LoadWifiJson(const char *filename) {
-  File file = SPIFFS.open(filename, "r");
+  File file = _fs.open(filename, "r");
   if (!file) {
     Serial.println("AppConfig: wifi file not found");
     LoadOverrides();
@@ -94,7 +94,7 @@ bool AppConfig::LoadWifiJson(const char *filename) {
 }
 
 bool AppConfig::LoadNetJson(const char *filename) {
-  File file = SPIFFS.open(filename, "r");
+  File file = _fs.open(filename, "r");
   if (!file) {
     Serial.println("AppConfig: net file not found");
     LoadOverrides();
@@ -142,7 +142,7 @@ bool AppConfig::LoadNetJson(const char *filename) {
 }
 
 bool AppConfig::LoadAppJson(const char *filename) {
-  File file = SPIFFS.open(filename, "r");
+  File file = _fs.open(filename, "r");
   if (!file) {
     Serial.println("AppConfig: app file not found");
     LoadOverrides();
@@ -164,6 +164,7 @@ bool AppConfig::LoadAppJson(const char *filename) {
 
   active_threshold = root["active_threshold"] | 500;
   adc_interval = root["adc_interval"] | 1000;
+  adc_offset_alpha = root["adc_offset_alpha"] | 0.001;
   ct_cal = root["ct_cal"] | 1.0;
   ct_ratio = root["ct_ratio"] | 2000.0;
   ct_resistor = root["ct_resistor"] | 33.0;

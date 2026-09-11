@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2018-2024 Tim Hawes
+// SPDX-FileCopyrightText: 2018-2026 Tim Hawes
 //
 // SPDX-License-Identifier: MIT
 
@@ -11,6 +11,7 @@
 class TokenDB
 {
 private:
+  fs::FS &_fs;
   const char *_filename;
   int access_level;
   int dbversion = -1;
@@ -19,7 +20,7 @@ private:
   bool query_v2(File file, uint8_t uidlen, uint8_t *uid);
   bool query_v3(File file, uint8_t uidlen, uint8_t *uid);
 public:
-  TokenDB(const char *filename);
+  TokenDB(fs::FS &fs, const char *filename);
   bool lookup(uint8_t uidlen, uint8_t *uid);
   bool lookup(const char *uid);
   int get_access_level();

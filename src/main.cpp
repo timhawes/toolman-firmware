@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2017-2025 Tim Hawes
+// SPDX-FileCopyrightText: 2017-2026 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -10,13 +10,17 @@
 #else
 #include <WiFi.h>
 #endif
-#include <FS.h>
-#ifdef ESP32
-#include <SPIFFS.h>
+
+#ifdef ESP8266
+#define FILESYSTEM SPIFFS
+#else
+#include <LittleFS.h>
+#define FILESYSTEM LittleFS
 #endif
 
 #ifdef ESP32
 #include <esp_task_wdt.h>
+#include <esp_mac.h>
 #endif
 
 #include <ArduinoJson.h>
@@ -26,7 +30,11 @@
 #include <base64.hpp>
 
 #include "AppConfig.hpp"
+#ifdef ESP8266
 #include "PowerReader.hpp"
+#else
+#include "ESP32PowerMonitor.hpp"
+#endif
 #include "app_display.h"
 #include "NetThing.hpp"
 #include "app_setup.h"
@@ -83,7 +91,7 @@ char clientid[15];
 char hostname[25];
 
 // config
-AppConfig config;
+AppConfig config(FILESYSTEM);
 
 PN532_I2C pn532i2c(Wire);
 PN532 pn532(pn532i2c);
@@ -93,7 +101,11 @@ Display display(lcd);
 NetThing net(1500, 4096);
 SimpleBuzzer buzzer(buzzer_pin);
 UI ui(flash_pin, button_a_pin, button_b_pin);
+#ifdef ESP8266
 PowerReader power_reader(adc_pin);
+#else
+ESP32PowerMonitor power_reader(adc_pin);
+#endif
 LaserMeter laser_meter(Wire);
 
 char user_name[33];
@@ -110,6 +122,9 @@ bool device_relay = false; // the relay *is* switched on
 bool device_active = false; // the current sensor is registering a load
 unsigned int device_milliamps = 0;
 unsigned int device_milliamps_simple = 0;
+#ifdef ESP32
+unsigned int power_offset_millivolts = 0;
+#endif
 
 #ifdef ESP8266
 WiFiEventHandler wifiEventConnectHandler;
@@ -160,12 +175,17 @@ void send_state()
     }
   }
 
-  StaticJsonDocument<JSON_OBJECT_SIZE(7)> obj;
+  StaticJsonDocument<JSON_OBJECT_SIZE(8)> obj;
   obj["cmd"] = "state_info";
   obj["state"] = state;
   obj["user"] = (const char*)user_name;
   obj["milliamps"] = device_milliamps;
+#ifdef ESP8266
   obj["milliamps_simple"] = device_milliamps_simple;
+#else
+  obj["power_offset_millivolts"] = power_offset_millivolts;
+  obj["power_overflow_count"] = power_reader.readOverflowCount();
+#endif
   obj["active_time"] = active_time;
   obj["idle_time"] = idle_time;
   net.sendJson(obj);
@@ -212,7 +232,7 @@ void token_info_callback(const char *uid, bool found, const char *name, uint8_t 
     return;
   }
 
-  TokenDB tokendb(TOKENS_FILENAME);
+  TokenDB tokendb(FILESYSTEM, TOKENS_FILENAME);
   if (tokendb.lookup(uid)) {
     if (tokendb.get_access_level() > 0) {
       strncpy(user_name, tokendb.get_user().c_str(), sizeof(user_name));
@@ -352,6 +372,10 @@ void load_app_config()
   power_reader.setCalibration(config.ct_cal);
   power_reader.setRatio(config.ct_ratio);
   power_reader.setResistor(config.ct_resistor);
+  power_reader.setOffsetAlpha(config.adc_offset_alpha);
+#ifdef ESP32
+  power_reader.setSamplePeriod(config.adc_interval);
+#endif
   if (device_relay) {
     net.setLoopWatchdog(config.loop_watchdog_busy_timeout);
   } else {
@@ -385,7 +409,7 @@ void button_callback(uint8_t button, bool state)
 #else
         delay(500);
 #endif
-        SetupMode setup_mode(hostname, SETUP_PASSWORD);
+        SetupMode setup_mode(FILESYSTEM, hostname, SETUP_PASSWORD);
 #ifdef ESP32
         setup_mode.setWatchdogFeed(true);
 #endif
@@ -471,6 +495,7 @@ void network_restart_callback(bool immediate, bool firmware, uint16_t reason)
 void network_transfer_status_callback(const char *filename, int progress, bool active, bool changed)
 {
   static int previous_progress = 0;
+
   if (strcmp("firmware", filename) == 0) {
     if (previous_progress != progress) {
       Serial.print("firmware install ");
@@ -480,6 +505,7 @@ void network_transfer_status_callback(const char *filename, int progress, bool a
       display.firmware_progress(progress);
     }
   }
+
   if (changed && strcmp(WIFI_JSON_FILENAME, filename) == 0) {
     load_wifi_config();
   }
@@ -593,7 +619,7 @@ void network_cmd_token_info(const JsonDocument &obj)
 #ifdef TOKENDB_DEBUG
 void network_cmd_tokendb_query(const JsonDocument &obj)
 {
-  TokenDB tokendb(TOKENS_FILENAME);
+  TokenDB tokendb(FILESYSTEM, TOKENS_FILENAME);
 
   unsigned long start = millis();
   bool found = tokendb.lookup(obj["uid"] | "");
@@ -715,26 +741,30 @@ void setup()
   Wire.begin(sda_pin, scl_pin);
   buzzer.begin();
   display.begin();
+
+  Serial.print("Filesystem: ");
 #ifdef ESP8266
-  if (!SPIFFS.begin()) {
+  if (FILESYSTEM.begin()) {
 #else
-  if (!SPIFFS.begin(true)) {
+  if (FILESYSTEM.begin(true)) {
 #endif
-    Serial.println("SPIFFS.begin() failed");
+    Serial.println("ok");
+  } else {
+    Serial.println("failed");
   }
 
 #ifdef ESP8266
   fix_filenames();
 #endif
 
-  if (SPIFFS.exists(WIFI_JSON_FILENAME) && SPIFFS.exists(NET_JSON_FILENAME)) {
+  if (FILESYSTEM.exists(WIFI_JSON_FILENAME) && FILESYSTEM.exists(NET_JSON_FILENAME)) {
     load_config();
   } else {
     Serial.println("config is missing, entering setup mode");
     display.setup_mode(hostname);
     net.stop();
     delay(1000);
-    SetupMode setup_mode(hostname, SETUP_PASSWORD);
+    SetupMode setup_mode(FILESYSTEM, hostname, SETUP_PASSWORD);
 #ifdef ESP32
     setup_mode.setWatchdogFeed(false);
 #endif
@@ -743,10 +773,12 @@ void setup()
   }
 
 #ifdef ESP32
-  enableCore0WDT();
-#ifndef CONFIG_FREERTOS_UNICORE
-  enableCore1WDT();
-#endif
+  #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+    enableCore0WDT();
+    #ifndef CONFIG_FREERTOS_UNICORE
+      enableCore1WDT();
+    #endif
+  #endif
 #endif
 
   power_reader.begin();
@@ -847,9 +879,15 @@ void adc_loop()
     return;
   }
 
+#ifdef ESP8266
   if ((long)(millis() - last_read) > config.adc_interval) {
     device_milliamps = power_reader.readRMSCurrent() * 1000;
     device_milliamps_simple = power_reader.readRMSEquivalentCurrent() * 1000;
+#else
+  if (power_reader.ready()) {
+    device_milliamps = power_reader.readRMSCurrentMilliamps();
+    power_offset_millivolts = power_reader.readOffsetMillivolts();
+#endif
     display.set_current(device_milliamps);
     last_read = millis();
 

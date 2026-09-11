@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2018-2024 Tim Hawes
+// SPDX-FileCopyrightText: 2018-2026 Tim Hawes
 //
 // SPDX-License-Identifier: MIT
 
@@ -6,12 +6,10 @@
 #include "app_util.h"
 #ifdef ESP32
 #include "MD5Builder.h"
-#include "SPIFFS.h"
 #endif
 
-TokenDB::TokenDB(const char *filename)
+TokenDB::TokenDB(fs::FS &fs, const char *filename) : _fs(fs), _filename(filename)
 {
-  _filename = filename;
 }
 
 bool TokenDB::query_v1(File file, uint8_t uidlen, uint8_t *uid) {
@@ -128,8 +126,8 @@ bool TokenDB::lookup(uint8_t uidlen, uint8_t *uidbytes)
   user = "";
   dbversion = -1;
 
-  if (SPIFFS.exists(_filename)) {
-    File tokens_file = SPIFFS.open(_filename, "r");
+  if (_fs.exists(_filename)) {
+    File tokens_file = _fs.open(_filename, "r");
     if (tokens_file) {
       dbversion = tokens_file.read();
       switch (dbversion) {

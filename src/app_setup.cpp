@@ -1,13 +1,16 @@
-// SPDX-FileCopyrightText: 2017-2024 Tim Hawes
+// SPDX-FileCopyrightText: 2017-2026 Tim Hawes
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "app_setup.h"
-#include <FS.h>
 #ifdef ESP32
-#include <SPIFFS.h>
+#include <WiFi.h>
 #endif
 #include <ArduinoJson.h>
+
+#ifndef WIFI_MODE_AP
+#define WIFI_MODE_AP WIFI_AP
+#endif
 
 static const char html[] PROGMEM =
     "<form method='POST' action='/update' />\n"
@@ -23,7 +26,7 @@ static const char html[] PROGMEM =
     "<input type='submit' value='Save and Restart' />"
     "</form>\n";
 
-SetupMode::SetupMode(const char *ssid, const char *password) {
+SetupMode::SetupMode(fs::FS &fs, const char *ssid, const char *password) : _fs(fs) {
   _ssid = ssid;
   _password = password;
 }
@@ -47,7 +50,7 @@ void SetupMode::configUpdateHandler() {
     if (server.argName(i) == "ssid") root["ssid"] = server.arg(i);
     if (server.argName(i) == "wpa_password") root["password"] = server.arg(i);
   }
-  file = SPIFFS.open(WIFI_JSON_FILENAME, "w");
+  file = _fs.open(WIFI_JSON_FILENAME, "w");
   serializeJson(root, file);
   file.close();
 
@@ -67,7 +70,7 @@ void SetupMode::configUpdateHandler() {
     }
     if (server.argName(i) == "server_password") root["password"] = server.arg(i);
   }
-  file = SPIFFS.open(NET_JSON_FILENAME, "w");
+  file = _fs.open(NET_JSON_FILENAME, "w");
   serializeJson(root, file);
   file.close();
 
@@ -81,7 +84,7 @@ void SetupMode::run() {
   Serial.println("in setup mode now");
 
   WiFi.disconnect();
-  WiFi.mode(WIFI_AP);
+  WiFi.mode(WIFI_MODE_AP);
   WiFi.softAP(_ssid, _password);
 
   delay(100);
