@@ -38,6 +38,7 @@ class AppConfig {
   // app
   bool dev;
   bool events;
+  bool laser_meter;
   bool nfc_read_counter;
   bool nfc_read_sig;
   bool quiet;
@@ -59,6 +60,7 @@ class AppConfig {
   long adc_interval;
   long idle_timeout;
   long idle_warning_timeout;
+  long laser_meter_interval;
   long loop_watchdog_busy_timeout;
   long loop_watchdog_idle_timeout;
   long token_query_timeout;
