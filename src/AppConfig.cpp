@@ -42,6 +42,8 @@ void AppConfig::LoadDefaults() {
   idle_timeout = 600000;
   idle_warning_beep = 100;
   idle_warning_timeout = 60000;
+  laser_meter = false;
+  laser_meter_interval = 1000;
   loop_watchdog_busy_timeout = 60000;
   loop_watchdog_idle_timeout = 60000;
   nfc_1m_limit = 60;
@@ -170,6 +172,8 @@ bool AppConfig::LoadAppJson(const char *filename) {
   idle_timeout = root["idle_timeout"] | 600000;
   idle_warning_beep = root["idle_warning_beep"] | 100;
   idle_warning_timeout = root["idle_warning_timeout"] | 60000;
+  laser_meter = root["laser_meter"] | false;
+  laser_meter_interval = root["laser_meter_interval"] | 1000;
   loop_watchdog_busy_timeout = root["loop_watchdog_busy_timeout"] | 60000;
   loop_watchdog_idle_timeout = root["loop_watchdog_idle_timeout"] | 60000;
   nfc_1m_limit = root["nfc_1m_limit"] | 60;
