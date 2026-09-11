@@ -542,11 +542,13 @@ void network_cmd_metrics_query(const JsonDocument &obj)
   reply["millis"] = millis();
   reply["nfc_reset_count"] = nfc.reset_count;
   reply["nfc_token_count"] = nfc.token_count;
-  reply["laser_total_us"] = laser_meter.getTotalMicroseconds();
-  reply["laser_session_us"] = laser_meter.getSessionMicroseconds();
-  reply["laser_read_crc_errors"] = laser_meter.read_crc_errors;
-  reply["laser_read_i2c_errors"] = laser_meter.read_i2c_errors;
-  reply["laser_read_ok"] = laser_meter.read_ok;
+  if (config.laser_meter) {
+    reply["laser_total_us"] = laser_meter.getTotalMicroseconds();
+    reply["laser_session_us"] = laser_meter.getSessionMicroseconds();
+    reply["laser_read_crc_errors"] = laser_meter.read_crc_errors;
+    reply["laser_read_i2c_errors"] = laser_meter.read_i2c_errors;
+    reply["laser_read_ok"] = laser_meter.read_ok;
+  }
 #ifdef LOOPMETRICS_ENABLED
   reply["loop_delays"] = loop_metrics.over_limit_count;
   reply["loop_average_interval"] = loop_metrics.average_interval;
