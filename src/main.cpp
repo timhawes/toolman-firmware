@@ -786,6 +786,7 @@ void device_goes_active()
   status_updated = true;
   session_went_active = millis();
   active_clock.start();
+  idle_clock.reset();
   display.set_state(device_enabled, device_active);
   if (config.events) net.sendEvent("active");
 }
@@ -795,6 +796,7 @@ void device_goes_inactive()
   device_active = false;
   status_updated = true;
   active_clock.stop();
+  idle_clock.reset();
   display.set_state(device_enabled, device_active);
   if (config.events) net.sendEvent("inactive");
 }
