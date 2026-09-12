@@ -57,24 +57,8 @@ void Display::loop()
 
   if (uptime_enabled) {
     if (millis() - last_uptime > 1000) {
-      unsigned int m = millis();
-      if (m < 60000) {
-        char t[4];
-        snprintf(t, sizeof(t), "%ds", millis() / 1000);
-        draw_left(0, 2, t, 5);
-      } else if (m < 3600000) {
-        char t[4];
-        snprintf(t, sizeof(t), "%dm", millis() / 60000);
-        draw_left(0, 2, t, 5);
-      } else if (m < 86400000) {
-        char t[4];
-        snprintf(t, sizeof(t), "%dh", millis() / 3600000);
-        draw_left(0, 2, t, 5);
-      } else {
-        char t[7];
-        snprintf(t, sizeof(t), "%dd", millis() / 86400000);
-        draw_left(0, 2, t, 5);
-      }
+      String msg = format_millis_interval(millis());
+      draw_left(0, 2, msg.c_str(), 5);
     }
   }
 
@@ -339,21 +323,8 @@ void Display::draw_clocks()
 
 void Display::draw_idle_time()
 {
-  if (idle_remaining > 0) {
-    unsigned long seconds_remaining = (idle_remaining + 999) / 1000;
-    if (seconds_remaining < 60) {
-      String msg = "\x08" + String(seconds_remaining) + "s";
-      draw_left(6, 0, msg.c_str(), 4);
-    } else {
-      unsigned long minutes_remaining = (idle_remaining + 59999) / 60000;
-      if (minutes_remaining < 100) {
-        String msg = "\x08" + String(minutes_remaining) + "m";
-        draw_left(6, 0, msg.c_str(), 4);
-      } else {
-        draw_left(6, 0, "", 4);
-      }
-    }
-  }
+  String msg = "\x08" + format_millis_interval(idle_remaining);
+  draw_left(6, 0, msg.c_str(), 4);
 }
 
 void Display::set_char(int position, uint8_t* data) {
@@ -366,4 +337,20 @@ void Display::set_nfc_state(bool ready) {
   } else {
     _lcd->createChar(1, lcd_char_cross);
   }
+}
+
+String Display::format_millis_interval(unsigned long ms) {
+  if (ms >= 86400000) {
+    return String(ms / 86400000) + "d";
+  }
+  if (ms >= 3600000) {
+    return String(ms / 3600000) + "h";
+  }
+  if (ms >= 60000) {
+    return String(ms / 60000) + "m";
+  }
+  if (ms >= 1000) {
+    return String(ms / 1000) + "s";
+  }
+  return String("0s");
 }

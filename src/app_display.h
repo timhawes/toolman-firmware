@@ -29,6 +29,7 @@ private:
   bool restarting = false;
   bool state_enabled = false;
   bool state_active = false;
+  String format_millis_interval(unsigned long ms);
 public:
   Display(LiquidCrystal_I2C &lcd);
   void begin();
